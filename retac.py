@@ -1,6 +1,7 @@
 import time
 from better_print import *
 
+
 # adding some imp varibles for furthur use.
 default_structure = {
     "1" : "1️⃣",
@@ -24,6 +25,7 @@ def game():
 
         global turn, ocupation, default_structure
         print("\n")
+        print(ocupation)
         print_structure() # printing structre.
 
         cc = chance_check() # checking whose chance this is.
@@ -120,13 +122,13 @@ def game_end(): # function to check if game should still be running and how it w
     d2c = ("⏺️" ==  default_structure["3"] == default_structure["5"] == default_structure["7"])
 
 # condition ends.
-
-    if ocupation == [1,2,3,4,5,6,7,8,9]: # checking if any free space is avalable to fill.
-        return "tie" 
-    elif r1h or r2h or r3h or c1h or c2h or c3h or d1h or d2h == True: # checking for hash's win.
+ 
+    if r1h or r2h or r3h or c1h or c2h or c3h or d1h or d2h == True: # checking for hash's win.
         return "hw" 
     elif r1c or r2c or r3c or c1c or c2c or c3c or d1c or d2c == True: # checking for circle's win
         return "cw" 
+    elif chance_check() == None: # checking if any free space is avalable to fill.
+        return "tie"
     else:  # if Game has not ended yet.
         return False
         
