@@ -25,7 +25,6 @@ def game():
 
         global turn, ocupation, default_structure
         print("\n")
-        print(ocupation)
         print_structure() # printing structre.
 
         cc = chance_check() # checking whose chance this is.
