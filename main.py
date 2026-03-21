@@ -1,46 +1,48 @@
 from better_print import *
 
 class Game:
-    def __init__(self):
-        self.map = {
-            "11" : "1️⃣",
-            "12" : "2️⃣",
-            "13" : "3️⃣",
-            "21" : "4️⃣",
-            "22" : "5️⃣",
-            "23" : "6️⃣",
-            "31" : "7️⃣",
-            "32" : "8️⃣",
-            "33" : "9️⃣",
-            }
+    def __init__(self, n=4):
+        self.n = n
+        self.symbols = {'cornor': "🟦",
+                        'void': "0️⃣",
+                        '1': "1️⃣",
+                        '2': "2️⃣",
+                        '3': "3️⃣",
+                        '4': "4️⃣",
+                        '5': "5️⃣",
+                        '6': "6️⃣",
+                        '7': "7️⃣",
+                        '8': "8️⃣",
+                        '9': "9️⃣",
+                        'P1' : '⏺️',
+                        'P2' : '#️⃣',
+                        'ai' : '#️⃣',
+                        None: "baka!"
+                        }
+        self.map = {}
+        for r in range(1, n+1):
+            for c in range(1, n+1):
+                self.map[f'{r}{c}'] = 'void'
         self.turn = 1
         self.ocupation = []
         self.mode = "pvp"
         self.placements = {
-             'r1' : [],
-             'r2' : [],
-             'r3' : [],
-             'c1' : [],
-             'c2' : [],
-             'c3' : [],
              'd1' : [],
              'd2' : []
         }
-        self.player_sylmbols = {
-             'P1' : '⏺️',
-             'P2' : '#️⃣',
-             'ai' : '#️⃣',
-             None: "baka!"
-        }
+        for i in range(1, n+1):
+            self.placements[f'r{i}'] = []
+            self.placements[f'c{i}'] = []
 
     def print_grid(self): # For printing structure
-                for r in range(1, 4):
-                    for c in range(1, 4):
-                        t = self.map[f'{r}{c}']
-                        if t in self.player_sylmbols.keys():
-                            print(self.player_sylmbols[t], end=" ")
-                        else:
-                             print(t, end=" ")
+                print(self.symbols['cornor'], end="")
+                for f in range(1, self.n+1):
+                    print(self.symbols[str(f)], end=" ")
+                print()
+                for r in range(1, self.n+1):
+                    print(self.symbols[str(r)], end=" ")
+                    for c in range(1,self.n+1):
+                        print(self.symbols[self.map[f'{r}{c}']], end=" ")
                     print()
 
     @property
@@ -88,10 +90,9 @@ class Game:
 
     def victory(self):
          for w in self.placements.values():
-              if len(w) == 3:
+              if len(w) == self.n:
                    if (w[0] == w[1] == w[2]):
                         return w[0]
-
 
     def game_end(self):
         if len(self.ocupation) == 9:
@@ -106,13 +107,13 @@ class Game:
             print('\n'*20)
             self.print_grid()
             # print(self.map, self.placements['c1']) # For debugging
-            change = better.input(f"Where to put {self.player_sylmbols[self.check_chance()]} : ").strip()
+            change = better.input(f"Where to put {self.symbols[self.check_chance()]} : ").strip()
             self.implement(change)
         else:
              print()
              messages = {
                   'tie': "Game ended with Tie.",
-                  'victory': f"Game ended, Player {self.player_sylmbols[self.victory()]}  won!",
+                  'victory': f"Game ended, Player {self.symbols[self.victory()]}  won!",
              }
              better.print(messages[self.game_end()])
     
