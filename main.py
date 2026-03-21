@@ -16,7 +16,6 @@ class Game:
         self.turn = 1
         self.ocupation = []
         self.mode = "pvp"
-
         self.placements = {
              'r1' : [],
              'r2' : [],
@@ -27,17 +26,21 @@ class Game:
              'd1' : [],
              'd2' : []
         }
-
         self.player_sylmbols = {
              'P1' : '⏺️',
              'P2' : '#️⃣',
-             'ai' : '#️⃣'
+             'ai' : '#️⃣',
+             None: "baka!"
         }
 
     def print_grid(self): # For printing structure
                 for r in range(1, 4):
                     for c in range(1, 4):
-                        print(self.map[f'{r}{c}'], end=" ")
+                        t = self.map[f'{r}{c}']
+                        if t in self.player_sylmbols.keys():
+                            print(self.player_sylmbols[t], end=" ")
+                        else:
+                             print(t, end=" ")
                     print()
 
     @property
@@ -74,17 +77,17 @@ class Game:
              self.map[change] = chance
              self.ocupation.append(change)
              self.turn += 1
-             self.placements[f'r{change[0]}'] = chance
-             self.placements[f'c{change[1]}'] = chance
+             self.placements[f'r{change[0]}'].append(chance)
+             self.placements[f'c{change[1]}'].append(chance)
              if change[0] == change[1]:
-                 self.placements['d1'] = chance
+                 self.placements['d1'].append(chance)
              if int(change[0]) + int(change[1]) == 4:
-                 self.placements['d2'] = chance
+                 self.placements['d2'].append(chance)
          else:
               print("invalid input!")
 
     def victory(self):
-         for w in self.placements:
+         for w in self.placements.values():
               if len(w) == 3:
                    if (w[0] == w[1] == w[2]):
                         return w[0]
@@ -100,13 +103,16 @@ class Game:
     
     def oraganize(self):
         while self.game_end() == False:
+            print('\n'*20)
             self.print_grid()
+            # print(self.map, self.placements['c1']) # For debugging
             change = better.input(f"Where to put {self.player_sylmbols[self.check_chance()]} : ").strip()
             self.implement(change)
         else:
+             print()
              messages = {
                   'tie': "Game ended with Tie.",
-                  'victory': f"Game ended, Player {self.player_sylmbols[self.victory()]} won!",
+                  'victory': f"Game ended, Player {self.player_sylmbols[self.victory()]}  won!",
              }
              better.print(messages[self.game_end()])
     
