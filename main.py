@@ -1,7 +1,7 @@
 from better_print import *
 
 class Game:
-    def __init__(self, n=4):
+    def __init__(self, n=3):
         self.n = n
         self.symbols = {'cornor': "🟦",
                         'void': "0️⃣",
