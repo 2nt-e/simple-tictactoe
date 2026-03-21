@@ -17,12 +17,29 @@ class Game:
         self.ocupation = []
         self.mode = "pvp"
 
+        self.placements = {
+             'r1' : [],
+             'r2' : [],
+             'r3' : [],
+             'c1' : [],
+             'c2' : [],
+             'c3' : [],
+             'd1' : [],
+             'd2' : []
+        }
+
+        self.player_sylmbols = {
+             'P1' : '⏺️',
+             'P2' : '#️⃣',
+             'ai' : '#️⃣'
+        }
+
     def print_grid(self): # For printing structure
                 for r in range(1, 4):
                     for c in range(1, 4):
                         print(self.map[f'{r}{c}'], end=" ")
                     print()
-    
+
     @property
     def mode(self): #WIP, mode
          return self._mode
@@ -37,12 +54,10 @@ class Game:
 
     def check_chance(self): # checking for chance
         if self.turn%2 == 0: 
-            self.turn += 1
             return self.mode 
         else: 
-            self.turn += 1
             return "P1"
-    
+
     def contraditon(self, change):
         try: 
             if change not in self.ocupation:
@@ -52,12 +67,55 @@ class Game:
         except:
             return "invalid_input"
     
+    def implement(self, change): #Implementing on every move
+         chance = self.check_chance() 
+         contraditon = self.contraditon(change)
+         if contraditon == False and change in self.map.keys():
+             self.map[change] = chance
+             self.ocupation.append(change)
+             self.turn += 1
+             self.placements[f'r{change[0]}'] = chance
+             self.placements[f'c{change[1]}'] = chance
+             if change[0] == change[1]:
+                 self.placements['d1'] = chance
+             if int(change[0]) + int(change[1]) == 4:
+                 self.placements['d2'] = chance
+         else:
+              print("invalid input!")
+
+    def victory(self):
+         for w in self.placements:
+              if len(w) == 3:
+                   if (w[0] == w[1] == w[2]):
+                        return w[0]
+
+
     def game_end(self):
-        ...
+        if len(self.ocupation) == 9:
+            return "tie"
+        elif self.victory() == "P1" or self.victory() == "P2":
+             return "victory"
+        else:
+            return False
+    
+    def oraganize(self):
+        while self.game_end() == False:
+            self.print_grid()
+            change = better.input(f"Where to put {self.player_sylmbols[self.check_chance()]} : ").strip()
+            self.implement(change)
+        else:
+             messages = {
+                  'tie': "Game ended with Tie.",
+                  'victory': f"Game ended, Player {self.player_sylmbols[self.victory()]} won!",
+             }
+             better.print(messages[self.game_end()])
+    
+
+
 
 
 obj = Game()
-obj.print()
+obj.oraganize()
 
 
 # def game():
@@ -100,47 +158,5 @@ obj.print()
 #         better.print("")
 #         print_structure()
 #         better.print("something wrong went!")
-
-
-# def game_end(): # function to check if game should still be running and how it will end.
-#     global default_structure, ocupation 
-
-# # all conditon for either hash or circle to win the game.
-
-#     r1h = ("#️⃣" ==  default_structure["1"] == default_structure["2"] == default_structure["3"])
-#     r2h = ("#️⃣" ==  default_structure["4"] == default_structure["5"] == default_structure["6"])
-#     r3h = ("#️⃣" ==  default_structure["7"] == default_structure["8"] == default_structure["9"])
-
-#     c1h = ("#️⃣" ==  default_structure["1"] == default_structure["4"] == default_structure["7"])
-#     c2h = ("#️⃣" ==  default_structure["2"] == default_structure["5"] == default_structure["8"])
-#     c3h = ("#️⃣" ==  default_structure["3"] == default_structure["6"] == default_structure["9"])
-
-#     d1h = ("#️⃣" ==  default_structure["1"] == default_structure["5"] == default_structure["9"])
-#     d2h = ("#️⃣" ==  default_structure["3"] == default_structure["5"] == default_structure["7"])
-
-
-#     r1c = ("⏺️" ==  default_structure["1"] == default_structure["2"] == default_structure["3"])
-#     r2c = ("⏺️" ==  default_structure["4"] == default_structure["5"] == default_structure["6"])
-#     r3c = ("⏺️" ==  default_structure["7"] == default_structure["8"] == default_structure["9"])
-
-#     c1c = ("⏺️" ==  default_structure["1"] == default_structure["4"] == default_structure["7"])
-#     c2c = ("⏺️" ==  default_structure["2"] == default_structure["5"] == default_structure["8"])
-#     c3c = ("⏺️" ==  default_structure["3"] == default_structure["6"] == default_structure["9"])
-
-#     d1c = ("⏺️" ==  default_structure["1"] == default_structure["5"] == default_structure["9"])
-#     d2c = ("⏺️" ==  default_structure["3"] == default_structure["5"] == default_structure["7"])
-
-# # condition ends.
- 
-#     if r1h or r2h or r3h or c1h or c2h or c3h or d1h or d2h == True: # checking for hash's win.
-#         return "hw" 
-#     elif r1c or r2c or r3c or c1c or c2c or c3c or d1c or d2c == True: # checking for circle's win
-#         return "cw" 
-#     elif chance_check() == None: # checking if any free space is avalable to fill.
-#         return "tie"
-#     else:  # if Game has not ended yet.
-#         return False
-        
-
 
 # game()
