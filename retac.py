@@ -2,7 +2,7 @@ from better_print import *
 
 class Game:
     def __init__(self):
-        self.default_structure = {
+        self.map = {
             "1" : "1️⃣",
             "2" : "2️⃣",
             "3" : "3️⃣",
@@ -19,15 +19,32 @@ class Game:
     def print(self): # For printing structure
                 for _ in range(1, 10):
                     if _ % 3 == 0:
-                        better.print(self.default_structure[f"{_}"], end="\n")
+                        better.print(self.map[f"{_}"], end="\n")
                     else:
-                        better.print(self.default_structure[f"{_}"], end=" ")
+                        better.print(self.map[f"{_}"], end=" ")
     
-    def check_chance(self):
-        if turn in [1,3,5,7,9]: # checking for hash's chance.
+    def check_chance(self): # checking for chance
+        if turn%2 == 0: 
+            turn += 1
             return "#️⃣" 
-        elif turn in [2,4,6,8]: # checking for circle's chance.
+        else: 
+            turn += 1
             return "⏺️"
+    
+    def contraditon(self, change):
+        try: 
+            if change not in self.ocupation:
+                return False
+            else:
+                return "already_occupied"
+        except:
+            return "invalid_input"
+    
+    def game_end(self):
+        ...
+
+
+
 
 
 def game():
@@ -71,26 +88,6 @@ def game():
         print_structure()
         better.print("something wrong went!")
 
-
-
-
-def chance_check(): # function to check for chance.
-    global turn 
-    if turn in [1,3,5,7,9]: # checking for hash's chance.
-        return "#️⃣" 
-    elif turn in [2,4,6,8]: # checking for circle's chance.
-        return "⏺️"
-
-
-def contraditon(change): # function for checking for any kind of contrdicton.
-    if change == "": # checking for empty spaces
-        return "e" 
-    elif change not in str([1,2,3,4,5,6,7,8,9]): # checking for unvalid value.
-        return "uv" 
-    elif change in str(ocupation): # checking for occupation.
-        return "o" 
-    else: # if there is no contraditon
-        return False 
 
 def game_end(): # function to check if game should still be running and how it will end.
     global default_structure, ocupation 
