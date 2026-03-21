@@ -1,23 +1,34 @@
-import time
 from better_print import *
 
+class Game:
+    def __init__(self):
+        self.default_structure = {
+            "1" : "1️⃣",
+            "2" : "2️⃣",
+            "3" : "3️⃣",
+            "4" : "4️⃣",
+            "5" : "5️⃣",
+            "6" : "6️⃣",
+            "7" : "7️⃣",
+            "8" : "8️⃣",
+            "9" : "9️⃣",
+            }
+        self.turn = 1
+        self.ocupation = []
 
-# adding some imp varibles for furthur use.
-default_structure = {
-    "1" : "1️⃣",
-    "2" : "2️⃣",
-    "3" : "3️⃣",
-    "4" : "4️⃣",
-    "5" : "5️⃣",
-    "6" : "6️⃣",
-    "7" : "7️⃣",
-    "8" : "8️⃣",
-    "9" : "9️⃣",
-}
+    def print(self): # For printing structure
+                for _ in range(1, 10):
+                    if _ % 3 == 0:
+                        better.print(self.default_structure[f"{_}"], end="\n")
+                    else:
+                        better.print(self.default_structure[f"{_}"], end=" ")
+    
+    def check_chance(self):
+        if turn in [1,3,5,7,9]: # checking for hash's chance.
+            return "#️⃣" 
+        elif turn in [2,4,6,8]: # checking for circle's chance.
+            return "⏺️"
 
-turn = 1
-ocupation = []
-# end of variable.
 
 def game():
     better.print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")  # Clear the console for better visibility
@@ -60,17 +71,6 @@ def game():
         print_structure()
         better.print("something wrong went!")
 
-
-
-def print_structure(): # Function to print the structure as 3x3 grid.
-
-    x = 1
-    while x < 10:
-        if x % 3 == 0:
-            better.print(default_structure[f"{x}"], end="\n")
-        else:
-            better.print(default_structure[f"{x}"], end=" ")
-        x += 1
 
 
 
