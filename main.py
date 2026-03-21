@@ -101,7 +101,7 @@ class Game:
                         return w[0]
 
     def game_end(self):
-        if len(self.ocupation) == 9:
+        if len(self.ocupation) == self.n**2:
             return "tie"
         elif self.victory() != None:
              return "victory"
