@@ -83,7 +83,7 @@ class Game:
              self.placements[f'c{change[1]}'].append(chance)
              if change[0] == change[1]:
                  self.placements['d1'].append(chance)
-             if int(change[0]) + int(change[1]) == 4:
+             if int(change[0]) + int(change[1]) == self.n+1:
                  self.placements['d2'].append(chance)
          else:
               print("invalid input!")
@@ -91,7 +91,7 @@ class Game:
     def victory(self):
          for w in self.placements.values():
               if len(w) == self.n:
-                   if (w[0] == w[1] == w[2]):
+                   if len(set(w)):
                         return w[0]
 
     def game_end(self):
