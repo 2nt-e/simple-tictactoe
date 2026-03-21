@@ -1,7 +1,7 @@
 from better_print import *
 
 class Game:
-    def __init__(self, n=3):
+    def __init__(self, n=3, mode='pvp'):
         self.n = n
         self.symbols = {'cornor': "🟦",
                         'void': "0️⃣",
@@ -25,7 +25,7 @@ class Game:
                 self.map[f'{r}{c}'] = 'void'
         self.turn = 1
         self.ocupation = []
-        self.mode = "pvp"
+        self.mode = mode
         self.placements = {
              'd1' : [],
              'd2' : []
@@ -75,7 +75,15 @@ class Game:
     def implement(self, change): #Implementing on every move
          chance = self.check_chance() 
          contraditon = self.contraditon(change)
-         if contraditon == False and change in self.map.keys():
+         if self.mode == 'ai':
+              ... #WIP
+# >>>>>> TO BE REMOVED...
+         if contraditon == "already_occupied":
+              print("already occupied!")
+         elif contraditon == "invalid_input":
+              print("invalid input!")
+# <<<<<<
+         elif contraditon == False and change in self.map.keys():
              self.map[change] = chance
              self.ocupation.append(change)
              self.turn += 1
@@ -85,13 +93,11 @@ class Game:
                  self.placements['d1'].append(chance)
              if int(change[0]) + int(change[1]) == self.n+1:
                  self.placements['d2'].append(chance)
-         else:
-              print("invalid input!")
 
     def victory(self):
          for w in self.placements.values():
               if len(w) == self.n:
-                   if len(set(w)):
+                   if len(set(w))==1:
                         return w[0]
 
     def game_end(self):
@@ -104,11 +110,11 @@ class Game:
     
     def oraganize(self):
         while self.game_end() == False:
-            print('\n'*20)
             self.print_grid()
             # print(self.map, self.placements['c1']) # For debugging
             change = better.input(f"Where to put {self.symbols[self.check_chance()]} : ").strip()
             self.implement(change)
+            print('\n'*2)
         else:
              print()
              messages = {
