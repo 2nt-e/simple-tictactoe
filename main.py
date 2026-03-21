@@ -96,7 +96,7 @@ class Game:
     def game_end(self):
         if len(self.ocupation) == 9:
             return "tie"
-        elif self.victory() == "P1" or self.victory() == "P2":
+        elif self.victory() != None:
              return "victory"
         else:
             return False
@@ -117,52 +117,5 @@ class Game:
              better.print(messages[self.game_end()])
     
 
-
-
-
 obj = Game()
 obj.oraganize()
-
-
-# def game():
-#     better.print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")  # Clear the console for better visibility
-#     while game_end() == False: # if game is still running.
-
-#         global turn, ocupation, default_structure
-#         print("\n")
-#         print_structure() # printing structre.
-
-#         cc = chance_check() # checking whose chance this is.
-#         change = better.input(f"Where to put {cc} : ").strip() # takling input fomr that player.
-#         contra = contraditon(change= change) # checking for contraditon
-
-#         if contra == False: # if no contraditon.
-#             default_structure[change] = cc # editing default structue.
-#             ocupation.append(int(change)) # adding occupation.
-#             turn = turn + 1 # incereaseing value for turn.
-#         # for contraditon.
-#         elif contra == "o": #
-#             better.print("That Place is already occupied!")
-#         elif contra == "uv" or "e":
-#             better.print("Please Enter a Valid Value!")
-#         # contraditon ends.
-
-
-#     if game_end() == "tie": # telling tie.
-#         better.print("")
-#         print_structure()
-#         better.print("Game Ended with a Tie!")
-#     elif game_end() == "hw": # telling hash won.
-#         better.print("")
-#         print_structure()
-#         better.print("⏺️ lost the game!") 
-#     elif game_end() == "cw": # telling circle won.
-#         better.print("")
-#         print_structure()
-#         better.print("#️⃣ lost the game!")
-#     else: # if something went wrong
-#         better.print("")
-#         print_structure()
-#         better.print("something wrong went!")
-
-# game()
