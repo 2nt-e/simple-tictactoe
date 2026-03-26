@@ -4,60 +4,6 @@ import tkinter as tk
 from tkinter import ttk
 import winsound
 
-class CButton(tk.Button):
-    def __init__(self, master=None, cid=[], engine=None, **kwargs):
-        self.engine = engine
-        self.cid = cid
-        
-        super().__init__(master, **kwargs)
-        self.whiteimg = tk.PhotoImage(file='resource/white.png')
-        self.redimg = tk.PhotoImage(file='resource/red.png')
-        self.blueimg = tk.PhotoImage(file='resource/blue.png')
-        self.configure(command=self.proceed, image=self.whiteimg, borderwidth=0, highlightthickness=0)
-
-    def proceed(self):
-        print(f"proceed: {self.cid}")
-        self.engine.implement(f'{self.cid[0]}{self.cid[1]}')
-        self.configure(state=tk.DISABLED, image=self.redimg)
-        winsound.PlaySound(r'C:\Users\OK\Documents\! PYTHON\simple-tictactoe\resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-
-
-
-class application(tk.Tk):
-    def __init__(self, engine, *args, **kwargs):
-        self.engine = engine
-
-        super().__init__(*args, **kwargs)
-        self.geometry('500x500')
-        self.title("Chromyl TicTacToe")
-        self.iconbitmap('resource/icon.ico')
-        self.resizable(width=False, height=False)
-
-        self.backframe = tk.Frame(self, background='gray')
-        self.backframe.grid(row=0, column=0)
-
-        self.txtvar = tk.StringVar()
-        self.txtvar.set("Chromyl TicTacToe")
-        self.text = tk.Label(self.backframe, textvariable=self.txtvar, background='gray', font=("Helvetica", 22, "bold"))
-        self.text.grid(row=1, column=0, pady=10)
-
-        self.gameframe = tk.Frame(self.backframe, border=1, borderwidth=5, relief=tk.GROOVE)
-        self.gameframe.grid(row=2, column=0, padx=100, pady=80)
-    
-    def run(self):
-        self.mainloop()
-    
-    def expand(self, n=3):
-        for i in range(1, n+1):
-            for j in range(1, n+1):
-                CButton(self.gameframe, cid=[i, j]).grid(row=i, column=j, engine=self.engine)
-
-
-m = application()
-m.expand(n=3)
-m.run()
-
-
 
 
 class Game:
@@ -180,3 +126,61 @@ class Game:
 
 # obj = Game(n=4)
 # obj.oraganize()
+
+
+
+
+class CButton(tk.Button):
+    def __init__(self, master=None, cid=[], engine=None, **kwargs):
+        self.engine = engine
+        self.cid = cid
+        
+        super().__init__(master, **kwargs)
+        self.images = {'0': tk.PhotoImage(file='resource/white.png'),
+                       'P1': tk.PhotoImage(file='resource/red.png'),
+                       'P2': tk.PhotoImage(file='resource/blue.png')}
+        self.configure(command=self.proceed, image=self.images['0'], borderwidth=0, highlightthickness=0)
+
+    def proceed(self):
+        p = self.engine.check_chance()
+        print(f"Player-{p} proceed at {self.cid}")
+        self.configure(state=tk.DISABLED, image=self.images[p])
+        self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
+        winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+
+
+
+class application(tk.Tk):
+    def __init__(self, engine, *args, **kwargs):
+        self.engine = engine()
+
+        super().__init__(*args, **kwargs)
+        self.geometry('500x500')
+        self.title("Simple TicTacToe")
+        self.iconbitmap('resource/icon.ico')
+        self.resizable(width=False, height=False)
+
+        self.backframe = tk.Frame(self, background='gray')
+        self.backframe.grid(row=0, column=0)
+
+        self.txtvar = tk.StringVar()
+        self.txtvar.set("Simple TicTacToe")
+        self.text = tk.Label(self.backframe, textvariable=self.txtvar, background='gray', font=("Helvetica", 22, "bold"))
+        self.text.grid(row=1, column=0, pady=10)
+
+        self.gameframe = tk.Frame(self.backframe, border=1, borderwidth=5, relief=tk.GROOVE)
+        self.gameframe.grid(row=2, column=0, padx=100, pady=80)
+    
+    def run(self):
+        self.mainloop()
+    
+    def expand(self, n=3):
+        for i in range(1, n+1):
+            for j in range(1, n+1):
+                CButton(self.gameframe, cid=[i, j], engine=self.engine).grid(row=i, column=j)
+
+
+m = application(engine=Game)
+m.expand(n=3)
+m.run()
+
