@@ -143,9 +143,12 @@ class CButton(tk.Button):
 
     def proceed(self):
         p = self.engine.check_chance()
+        colors = {'P1': 'red', 'P2': 'blue'}
         print(f"Player-{p} proceed at {self.cid}")
         self.configure(state=tk.DISABLED, image=self.images[p])
         self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
+        self.master.master.master.backframe.configure(background=colors[p])
+        self.master.master.master.txtvar.set(f"{self.engine.check_chance()}'s Turn!")
         winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
 
 
