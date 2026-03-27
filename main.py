@@ -36,7 +36,7 @@ class MainEngine:
             self.placements[f'r{i}'] = []
             self.placements[f'c{i}'] = []
 
-    def print_grid(self): # For printing structure
+    def print_grid(self): # For printing structure, For testing.
                 print(self.symbols['cornor'], end="")
                 for f in range(1, self.n+1):
                     print(self.symbols[str(f)], end=" ")
@@ -115,7 +115,7 @@ class CButton(tk.Button):
         self.images = {'0': tk.PhotoImage(file='resource/white.png'),
                        'P1': tk.PhotoImage(file='resource/red.png'),
                        'P2': tk.PhotoImage(file='resource/blue.png')}
-        self.configure(command=self.proceed, image=self.images['0'], borderwidth=0, highlightthickness=0)
+        self.configure(command=self.proceed, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
 
     def proceed(self):
         if not self.engine.game_end():
@@ -141,6 +141,7 @@ class CButton(tk.Button):
              winsound.PlaySound(r'resource\victory.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
              self.master.master.master.backframe.configure(background='silver')
              self.master.master.master.text.configure(background='silver', foreground='white')
+             self.master.master.master.disallCbutton()
 
 
 
@@ -161,7 +162,7 @@ class GameWindow(tk.Tk):
 
         self.txtvar = tk.StringVar()
         self.txtvar.set("Simple TicTacToe")
-        self.text = tk.Label(self.backframe, textvariable=self.txtvar, background='silver', font=("Helvetica", 22, "bold"), foreground='white')
+        self.text = tk.Label(self.backframe, textvariable=self.txtvar, background='silver', font=("Franklin Gothic Heavy", 22, "bold"), foreground='white')
         self.text.grid(row=1, column=0, pady=10)
 
         self.gameframe = tk.Frame(self.backframe, border=1, borderwidth=5, relief="solid", background="#212124")
@@ -175,10 +176,14 @@ class GameWindow(tk.Tk):
         self.engine.print_grid()
         self.mainloop()
         
-    
+    def disallCbutton(self):
+        for i in range(1, self.n+1):
+            for j in range(1, self.n+1):
+                ... #WIP
+
+
 
 
 
 main = GameWindow(engine=MainEngine, n=3)
 main.run()
-
