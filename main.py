@@ -3,6 +3,7 @@ from better_print import *
 import tkinter as tk
 import winsound
 
+import asyncio
 
 
 class MainEngine:
@@ -56,6 +57,8 @@ class MainEngine:
               self._mode = 'P2'
          elif value == 'ai':
               self._mode = 'ai' 
+         elif value == 'online':
+              self._mode = 'Opt'
          else:
               self._mode = 'invalid_mode'
 
@@ -106,18 +109,19 @@ class MainEngine:
     
     
 
-class CButton(tk.Button):
-    def __init__(self, master=None, cid=[], engine=None, **kwargs):
-        self.engine = engine
+class GameButton(tk.Button):
+    def __init__(self, master=None, cid=[], **kwargs):
         self.cid = cid
-        self.continue_game = True
         super().__init__(master, **kwargs)
         self.images = {'0': tk.PhotoImage(file='resource/white.png'),
                        'P1': tk.PhotoImage(file='resource/red.png'),
                        'P2': tk.PhotoImage(file='resource/blue.png')}
-        self.configure(command=self.proceed, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
+        self.top = self.master.master.master
+        self.engine = self.top.engine
+        self.gamemodes = {'P2': self.OffPVP, 'Opt': self.OnnPVP}
+        self.configure(command=self.gamemodes[self.top.engine.mode], image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
 
-    def proceed(self):
+    def OffPVP(self):
         if not self.engine.game_end():
             p = self.engine.check_chance()
             colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
@@ -125,24 +129,49 @@ class CButton(tk.Button):
             print(f"Player-{p} proceed at {self.cid}")
             self.configure(state=tk.DISABLED, image=self.images[p])
             self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
-            self.master.master.master.backframe.configure(background=colors[self.engine.check_chance()])
-            self.master.master.master.text.configure(background=colors[self.engine.check_chance()], foreground=colors_name[self.engine.check_chance()])
-            self.master.master.master.txtvar.set(f"{colors_name[self.engine.check_chance()]}'s Turn!")
+            self.top.backframe.configure(background=colors[self.engine.check_chance()])
+            self.top.text.configure(background=colors[self.engine.check_chance()], foreground=colors_name[self.engine.check_chance()])
+            self.top.txtvar.set(f"{colors_name[self.engine.check_chance()]}'s Turn!")
             self.engine.print_grid()
             winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-
         if self.engine.game_end():
              self.continue_game = False
+             end = self.engine.game_end()
              messages = {
                   'tie': "Game ended with Tie.",
                   'victory': f"Game ended, {colors_name[self.engine.victory()]} won!",}
-             better.print(messages[self.engine.game_end()])
+             better.print(messages[end])
              self.master.master.master.txtvar.set(messages[self.engine.game_end()])
-             winsound.PlaySound(r'resource\victory.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-             self.master.master.master.backframe.configure(background='silver')
-             self.master.master.master.text.configure(background='silver', foreground='white')
-             self.master.master.master.disallCbutton()
+             winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+             self.top.backframe.configure(background='silver')
+             self.top.text.configure(background='silver', foreground='white')
+             self.top.disallCbutton()
 
+    def OnnPVP(self):
+        if not self.engine.game_end():
+            p = self.engine.check_chance()
+            colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
+            colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
+            print(f"Player-{p} proceed at {self.cid}")
+            self.configure(state=tk.DISABLED, image=self.images[p])
+            self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
+            self.top.backframe.configure(background=colors[self.engine.check_chance()])
+            self.top.text.configure(background=colors[self.engine.check_chance()], foreground=colors_name[self.engine.check_chance()])
+            self.top.txtvar.set(f"{colors_name[self.engine.check_chance()]}'s Turn!")
+            self.engine.print_grid()
+            winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+        if self.engine.game_end():
+             self.continue_game = False
+             end = self.engine.game_end()
+             messages = {
+                  'tie': "Game ended with Tie.",
+                  'victory': f"Game ended, {colors_name[self.engine.victory()]} won!",}
+             better.print(messages[end])
+             self.master.master.master.txtvar.set(messages[self.engine.game_end()])
+             winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+             self.top.backframe.configure(background='silver')
+             self.top.text.configure(background='silver', foreground='white')
+             self.top.disallCbutton()
 
 
 
@@ -152,7 +181,8 @@ class GameWindow(tk.Tk):
         self.engine = engine(n=self.n)
 
         super().__init__(*args, **kwargs)
-        self.geometry('500x500')
+        size = self.n * 100 + 200
+        self.geometry(f'{size}x{size}')
         self.title("Simple TicTacToe")
         self.iconbitmap('resource/icon.ico')
         self.resizable(width=False, height=False)
@@ -170,20 +200,56 @@ class GameWindow(tk.Tk):
     
         for i in range(1, self.n+1):
             for j in range(1, self.n+1):
-                CButton(self.gameframe, cid=[i, j], engine=self.engine).grid(row=i, column=j, padx=1, pady=1)
+                GameButton(self.gameframe, cid=[i, j]).grid(row=i, column=j, padx=1, pady=1)
 
     def run(self):
         self.engine.print_grid()
         self.mainloop()
         
     def disallCbutton(self):
-        for i in range(1, self.n+1):
-            for j in range(1, self.n+1):
-                ... #WIP
+        for button in self.gameframe.winfo_children():
+            button.configure(state=tk.DISABLED)
 
 
 
+class GridButton(tk.Button):
+    def __init__(self, master=None, gid='3x3', **kwargs):
+        self.gid = gid
+        super().__init__(master, **kwargs)
+        self.image =tk.PhotoImage(file=f'resource/{self.gid}.png')
+        self.configure(command=self.Toggle, image=self.image, borderwidth=0, highlightthickness=0, bd=0)
+    
+    def Toggle(self):
+        winsound.PlaySound(rf'resource\tick.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+        self.master.n = int(self.gid[0])
+        for button in self.master.winfo_children():
+            if str(button)[2] == 'g':
+               button.configure(state=tk.NORMAL)
+        self.configure(state=tk.DISABLED)
 
 
-main = GameWindow(engine=MainEngine, n=3)
-main.run()
+class MenuWindow(tk.Tk):
+    def __init__(self, *args, **kwargs):
+        self.n = 3
+        super().__init__(*args, **kwargs)
+        self.geometry('500x500')
+        self.title("Simple TicTacToe")
+        self.iconbitmap('resource/icon.ico')
+        self.resizable(width=False, height=False)
+        self.mainframe = tk.Frame(self, background='gray').grid(row=0, column=0)
+
+        tk.Label(self.mainframe, text="Select Grid Size & Game Mode!", font=("Franklin Gothic Heavy", 22, "bold"), background='gray').grid(row=1, column=1, padx=20)
+        
+        GridButton(self.mainframe, gid='3x3').grid(column=1, row=2, pady=20)
+        GridButton(self.mainframe, gid='4x4').grid(column=1, row=3, pady=20)
+        
+        tk.Button(self.mainframe, text="Start Game", command=self.start_game).grid(row=4,column=1, pady=20)
+
+    def start_game(self):
+        self.destroy()
+        game = GameWindow(engine=MainEngine, n=self.n)
+        game.run()
+
+
+main = MenuWindow()
+main.mainloop()
