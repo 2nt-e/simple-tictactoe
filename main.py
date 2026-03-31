@@ -64,6 +64,7 @@ class MainEngine:
             return "invalid_input"
     
     async def implement(self, change): #Implementing on every move
+         print(self.mode)
          chance = self.check_chance() 
          contraditon = self.contraditon(change)
          if self.mode == 'ai':
@@ -155,6 +156,7 @@ class GameButton(tk.Button):
             colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
             colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
             print(f"Player-{p} proceed at {self.cid}")
+            print(self.engine.mode)
             self.configure(state=tk.DISABLED, image=self.images[p])
             self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
             self.top.backframe.configure(background=colors[self.engine.check_chance()])
@@ -264,8 +266,12 @@ class MenuButton(tk.Button):
         self.configure(command=self.start_game)
     
     def start_game(self):
+        if self.mode != 'opt':
+            link = None
+        else:
+            link = self.master.entryvar.get()
         self.master.destroy()
-        game = GameWindow(engine=MainEngine, n=self.master.n, mode=self.mode, linkage=self.master.entryvar.get())
+        game = GameWindow(engine=MainEngine, n=self.master.n, mode=self.mode, linkage=link)
         game.run()
 
 
