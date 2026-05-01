@@ -281,6 +281,7 @@ class MenuButton(tk.Button):
         super().__init__(master, **kwargs)
         self.sideffect = sideffect
         self.configure(command=self.start_game)
+        self._temp = False
     
     def start_game(self):
         self.master.destroy()
@@ -289,14 +290,19 @@ class MenuButton(tk.Button):
         elif self.sideffect == 'online_mode':
             Inv.mode = 'online'
             OnlineWindow().mainloop()
+            self._temp = True
         elif self.sideffect == 'create_room':
             Inv.address = self.master.address.get()
         elif self.sideffect == 'join_room':
             Inv.address = self.master.room.get()
             Inv.room_code = self.master.room.get()
 
-        game = GameWindow(engine=MainEngine)
-        game.run()
+        if self._temp == False:
+            game = GameWindow(engine=MainEngine)
+            game.run()
+        else:
+            self._temp = False
+
 
 
 
@@ -359,7 +365,6 @@ def main():
     Inv.master_loop.run_in_executor(None, tkiner_loop)
     Inv.master_loop.run_forever()
 
-    asyncio.run_coroutine_threadsafe(tkiner_loop, Inv.master_loop)
 
 if __name__ == "__main__":
     main()
