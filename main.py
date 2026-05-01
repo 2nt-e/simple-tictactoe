@@ -2,12 +2,23 @@ from better_print import *
 import tkinter as tk
 import winsound
 import asyncio
-import requests
+from websockets.asyncio.client import connect
+import json
+
+class Storage:
+    def __init__(self):
+        self.order = 3
+        self.mode = 'offline'
+        self.address = None
+        self.room_code = None
+
+Inv = Storage()
+
 
 class MainEngine:
-    def __init__(self, n=3, mode='pvp', Onhand=None, linkage=None):
+    def __init__(self, Onhand=None):
         self.pause = False
-        self.n = n
+        self.n = Inv.order
         self.symbols = {'cornor': "🟦", # For testing.
                         'void': "0️⃣",
                         '1': "1️⃣",
@@ -25,17 +36,17 @@ class MainEngine:
                         None: "baka!"
                         }
         self.map = {}
-        for r in range(1, n+1):
-            for c in range(1, n+1):
+        for r in range(1, self.n+1):
+            for c in range(1, self.n+1):
                 self.map[f'{r}{c}'] = 'void'
         self.turn = 1
         self.ocupation = []
-        self.mode = mode
+        self.mode = Inv.mode
         self.placements = {'d1' : [], 'd2' : []}
-        for i in range(1, n+1):
+        for i in range(1, self.n+1):
             self.placements[f'r{i}'] = []
             self.placements[f'c{i}'] = []
-        self.Onhand = Onhand(self, linkage=linkage)
+        self.Onhand = Onhand(self)
 
     def print_grid(self): # For printing structure, For testing.
                 print(self.symbols['cornor'], end="")
@@ -64,7 +75,6 @@ class MainEngine:
             return "invalid_input"
     
     async def implement(self, change): #Implementing on every move
-         print(self.mode)
          chance = self.check_chance() 
          contraditon = self.contraditon(change)
          if self.mode == 'ai':
@@ -79,8 +89,8 @@ class MainEngine:
                  self.placements['d1'].append(chance)
              if int(change[0]) + int(change[1]) == self.n+1:
                  self.placements['d2'].append(chance)
-         if self.mode == 'opt':
-            self.Onhand.push() 
+         if self.mode == 'online':
+            await self.Onhand.push() 
             fetch = await self.Onhand.pull()
             self.map = fetch['map']
             self.ocupation = fetch['ocupation']
@@ -102,38 +112,42 @@ class MainEngine:
         else:
             return False
     
-    
+
 
 class OnlineHanddler:
-    def __init__(self, engine, linkage):
-        self.host = linkage
+    def __init__(self, engine):
+        self.player = None
+        self.address = Inv.address
         self.engine = engine
         self.data = {'map': self.engine.map,
                      'ocupation': self.engine.ocupation,
                      'placements': self.engine.placements,
                      'reciver': self.engine.check_chance()}
+        asyncio.run_coroutine_threadsafe(self.connect(), Inv.master_loop)
+
+    async def connect(self):
+        self.websocket = await connect(f"ws://{self.address}")
 
     async def pull(self):
         while True:
             try: 
-                r =requests.get(self.host +'/getside')
-                if r.status_code == 200 and r.json()['reciver'] == self.engine.check_chance():
-                    self.engine.map = r.json()['map']
-                    self.engine.ocupation = r.json()['ocupation']
-                    self.engine.placements = r.json()['placements']
+                req = await self.websocket.recv()
+                if req.status_code == 200 and req.json()['reciver'] == self.engine.check_chance():
+                    self.engine.map = req.json()['map']
+                    self.engine.ocupation = req.json()['ocupation']
+                    self.engine.placements = req.json()['placements']
                     break
                 else:
-                    print(r.status_code)
-                    print(r.text)
+                    print(req.status_code)
+                    print(req.text)
                     
             except:
                 ...
         return self.data
 
     async def push(self):
-        p = requests.post(self.host +'/pushside', json=self.data)
-        print(p.status_code)
-        asyncio.sleep(0.25)
+        await self.websocket.send(json.dumps(self.data))
+            
 
 
 
@@ -147,18 +161,21 @@ class GameButton(tk.Button):
                        'P2': tk.PhotoImage(file='resource/blue.png')}
         self.top = self.master.master.master
         self.engine = self.top.engine
-        self.gamemodes = {'pvp': self.OffPVP, 'opt': self.OnnPVP}
-        self.configure(command=self.gamemodes[self.top.engine.mode], image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
+        self.gamemodes = {'offline': self.OfflinePVP, 'online': self.OnlinePVP}
+        self.configure(command=self.asynclick, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
 
-    def OffPVP(self):
+    def asynclick(self):
+        asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inv.master_loop)
+
+
+    async def OfflinePVP(self):
         if not self.engine.game_end():
             p = self.engine.check_chance()
             colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
             colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
             print(f"Player-{p} proceed at {self.cid}")
-            print(self.engine.mode)
             self.configure(state=tk.DISABLED, image=self.images[p])
-            self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
+            await self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
             self.top.backframe.configure(background=colors[self.engine.check_chance()])
             self.top.text.configure(background=colors[self.engine.check_chance()], foreground=colors_name[self.engine.check_chance()])
             self.top.txtvar.set(f"{colors_name[self.engine.check_chance()]}'s Turn!")
@@ -176,7 +193,7 @@ class GameButton(tk.Button):
              self.top.text.configure(background='silver', foreground='white')
              self.top.disallCbutton()
 
-    async def OnnPVP(self):
+    async def OnlinePVP(self):
         if not self.engine.game_end():
             p = self.engine.check_chance()
             colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
@@ -205,10 +222,10 @@ class GameButton(tk.Button):
 
 
 class GameWindow(tk.Tk):
-    def __init__(self, engine, n, mode, linkage=None, *args, **kwargs):
-        self.n = n
-        self.mode = mode
-        self.engine = engine(n=self.n, Onhand=OnlineHanddler, mode=self.mode, linkage=linkage)
+    def __init__(self, engine, *args, **kwargs):
+        self.n = Inv.order
+        self.mode = Inv.mode
+        self.engine = engine(Onhand=OnlineHanddler)
 
         super().__init__(*args, **kwargs)
         size = self.n * 100 + 200
@@ -251,7 +268,7 @@ class GridButton(tk.Button):
     
     def Toggle(self):
         winsound.PlaySound(rf'resource\tick.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-        self.master.n = int(self.gid[0])
+        Inv.order = int(self.gid[0])
         for button in self.master.winfo_children():
             if str(button)[2] == 'g':
                button.configure(state=tk.NORMAL)
@@ -260,18 +277,25 @@ class GridButton(tk.Button):
 
 
 class MenuButton(tk.Button):
-    def __init__(self, master=None, mode=None, **kwargs):
+    def __init__(self, master=None, sideffect=None, **kwargs):
         super().__init__(master, **kwargs)
-        self.mode = mode
+        self.sideffect = sideffect
         self.configure(command=self.start_game)
     
     def start_game(self):
-        if self.mode != 'opt':
-            link = None
-        else:
-            link = self.master.entryvar.get()
         self.master.destroy()
-        game = GameWindow(engine=MainEngine, n=self.master.n, mode=self.mode, linkage=link)
+        if self.sideffect == 'offline_mode':
+            Inv.mode = 'offline'
+        elif self.sideffect == 'online_mode':
+            Inv.mode = 'online'
+            OnlineWindow().mainloop()
+        elif self.sideffect == 'create_room':
+            Inv.address = self.master.address.get()
+        elif self.sideffect == 'join_room':
+            Inv.address = self.master.room.get()
+            Inv.room_code = self.master.room.get()
+
+        game = GameWindow(engine=MainEngine)
         game.run()
 
 
@@ -291,12 +315,9 @@ class MenuWindow(tk.Tk):
         GridButton(self.mainframe, gid='3x3').grid(column=1, row=2, pady=20)
         GridButton(self.mainframe, gid='4x4').grid(column=1, row=3, pady=20)
 
-        MenuButton(self.mainframe, text="Start Game In Offline Mode", mode="pvp").grid(row=4,column=1, pady=20)
-        tk.Button(self.mainframe, text='Start Game In Online Mode', command=self.online).grid(row=5,column=1, pady=20)
+        MenuButton(self.mainframe, text="Start Game In Offline Mode", sideffect="offline_mode").grid(row=4,column=1, pady=20)
+        MenuButton(self.mainframe, text='Start Game In Online Mode', sideffect="online_mode").grid(row=5,column=1, pady=20)
 
-    def online(self):
-        self.destroy()
-        OnlineWindow().mainloop()
 
 
 
@@ -313,16 +334,32 @@ class OnlineWindow(tk.Tk):
         tk.Button(self.mainframe, text='back', command=self.back).grid(row=0, column=1)
         tk.Label(self.mainframe, text="Create or Join Room in Server!", font=("Franklin Gothic Heavy", 22, "bold"), background='gray').grid(row=1, column=1, padx=20)
         
-        self.entryvar = tk.StringVar()
+        self.address = tk.StringVar()
         tk.Label(text="Host:").grid(row=2,column=1, pady=5)
-        tk.Entry(self.mainframe, textvariable=self.entryvar).grid(row=3,column=1, pady=1)
-        MenuButton(self.mainframe, text="Create a Room", mode='opt').grid(row=4,column=1, pady=5)
+        tk.Entry(self.mainframe, textvariable=self.address).grid(row=3,column=1, pady=1)
+        MenuButton(self.mainframe, text="Create a Room", sideffect='create_room').grid(row=4,column=1, pady=5)
+
+        self.room = tk.StringVar()
+        tk.Label(text="Room ID:").grid(row=5,column=1, pady=5)
+        tk.Entry(self.mainframe, textvariable=self.room).grid(row=6,column=1, pady=1)
+        MenuButton(self.mainframe, text="Or join a Room", sideffect='join_room').grid(row=7,column=1, pady=5)
 
     def back(self):
         self.destroy()
         MenuWindow().mainloop()
 
 
+def tkiner_loop():
+    main = MenuWindow()
+    main.mainloop()
 
-main = MenuWindow()
-main.mainloop()
+def main():
+    Inv.master_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(Inv.master_loop)
+    Inv.master_loop.run_in_executor(None, tkiner_loop)
+    Inv.master_loop.run_forever()
+
+    asyncio.run_coroutine_threadsafe(tkiner_loop, Inv.master_loop)
+
+if __name__ == "__main__":
+    main()
