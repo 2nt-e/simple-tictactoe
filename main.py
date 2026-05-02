@@ -11,19 +11,73 @@ def MainCode():
     class Core:
         def __init__(self):
             self.temproray_memory()
+            self.Instance_run = False
+            self.GameWindow_run = False
             self.Engine = None
             self.Client = None
+            self.GameWindow = None
+
 
         def temproray_memory(self):
-            self.order = 3
-            self.mode = 'offline'
-            self.address = None
-            self.room_code = None
-            self.you = None
+            self._order = 3
+            self._mode = 'offline'
+            self._address = None
+            self._room_code = None
+            self._you = None
+        @property
+        def mode(self):
+            return self._mode
+        @mode.setter
+        def mode(self, value):
+            self._mode = value
+            if self.Instance_run:
+                self.Engine.refresh()
+            if self.GameWindow_run == True:
+                self.GameWindow.refresh()
+        @property
+        def order(self):
+            return self._order
+        @order.setter
+        def order(self, value):
+            self._order = value
+            if self.Instance_run:
+                self.Engine.refresh()
+            if self.GameWindow_run == True:
+                self.GameWindow.refresh()
+        @property
+        def address(self):
+            return self._address
+        @address.setter
+        def address(self, value):
+            self._address = value
+            if self.Instance_run:
+                self.Client.refresh()
+        @property
+        def room_code(self):
+            return self._room_code
+        @room_code.setter
+        def room_code(self, value):
+            self._room_code = value
+            if self.Instance_run:
+                self.Client.refresh()
+        @property
+        def you(self):
+            return self._you
+        @you.setter
+        def you(self, value):
+            self._you = value
+            if self.Instance_run:
+                self.Client.refresh()
 
-        def start_engines(self):
+
+        def start_Instances(self):
             self.Engine = MainEngine()
             self.Client = ClientSide()
+            self.Instance_run = True
+
+        def start_GameWindow(self):
+            self.GameWindow = GameWindow()
+            self.GameWindow_run = True
 
     Inventory = Core()
 
@@ -31,7 +85,7 @@ def MainCode():
     class MainEngine:
         def __init__(self):
             self.pause = False
-            self.n = Inventory.order
+            self.refresh()
             self.symbols = {'cornor': "🟦", # For testing.
                             'void': "0️⃣",
                             '1': "1️⃣",
@@ -54,12 +108,15 @@ def MainCode():
                     self.map[f'{r}{c}'] = 'void'
             self.turn = 1
             self.ocupation = []
-            self.mode = Inventory.mode
             self.placements = {'d1' : [], 'd2' : []}
             for i in range(1, self.n+1):
                 self.placements[f'r{i}'] = []
                 self.placements[f'c{i}'] = []
+
+        def refresh(self):
+            self.n = Inventory.order
             self.ClientSide = Inventory.Client
+            self.mode = Inventory.mode
 
         def print_grid(self): # For printing structure, For testing.
                     print(self.symbols['cornor'], end="")
@@ -128,14 +185,20 @@ def MainCode():
 
     class ClientSide:
         def __init__(self):
-            self.player = None
-            self.address = Inventory.address
-            self.engine = Inventory.Engine
+            self.refresh()
             self.data = {'map': self.engine.map,
                         'ocupation': self.engine.ocupation,
                         'placements': self.engine.placements,
                         'reciver': self.engine.check_chance()}
             asyncio.run_coroutine_threadsafe(self.connect(), Inventory.master_loop)
+
+        def refresh(self):
+            self.engine = Inventory.Engine
+            self.address = Inventory.address
+            self.room_code = Inventory.room_code
+            self.you = Inventory.you
+
+
 
         async def connect(self):
             self.websocket = await connect(f"ws://{self.address}")
@@ -237,9 +300,7 @@ def MainCode():
 
     class GameWindow(tk.Tk):
         def __init__(self, *args, **kwargs):
-            self.n = Inventory.order
-            self.mode = Inventory.mode
-            self.engine = Inventory.Engine
+            self.refresh()
 
             super().__init__(*args, **kwargs)
             size = self.n * 100 + 200
@@ -263,6 +324,10 @@ def MainCode():
                 for j in range(1, self.n+1):
                     GameButton(self.gameframe, cid=[i, j]).grid(row=i, column=j, padx=1, pady=1)
 
+        def refresh(self):
+            self.n = Inventory.order
+            self.mode = Inventory.mode
+            self.engine = Inventory.Engine
         def run(self):
             self.engine.print_grid()
             self.mainloop()
@@ -299,6 +364,7 @@ def MainCode():
         
         def start_game(self):
             self.master.destroy()
+            Inventory.start_GameWindow()
             if self.sideffect == 'offline_mode':
                 Inventory.mode = 'offline'
             elif self.sideffect == 'online_mode':
@@ -314,8 +380,7 @@ def MainCode():
                 Inventory.you = 'P2'
 
             if self._temp == False:
-                game = GameWindow(engine=MainEngine)
-                game.run()
+                Inventory.GameWindow.run()
             else:
                 self._temp = False
 
@@ -327,7 +392,7 @@ def MainCode():
             self.n = 3
             super().__init__(*args, **kwargs)
             self.geometry('500x500')
-            self.title("Simple TicTacToe")
+            self.title("Simple Menu")
             self.iconbitmap('resource/icon.ico')
             self.resizable(width=False, height=False)
             self.mainframe = tk.Frame(self, background='gray').grid(row=0, column=0)
@@ -377,9 +442,9 @@ def MainCode():
 
     Inventory.master_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(Inventory.master_loop)
+    Inventory.start_Instances()
     Inventory.master_loop.run_in_executor(None, tkiner_loop)
 
-    Inventory.start_engines()
     Inventory.master_loop.run_forever()
 
 if __name__ == "__main__":
