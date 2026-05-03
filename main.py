@@ -8,6 +8,7 @@ import json
 
 def MainCode():
 
+
     class Core:
         def __init__(self):
             self.memory()
@@ -38,38 +39,26 @@ def MainCode():
 
     class MainEngine:
         def __init__(self):
-            self.symbols = {'cornor': "🟦", # For testing.
-                            'void': "0️⃣",
-                            '1': "1️⃣",
-                            '2': "2️⃣",
-                            '3': "3️⃣",
-                            '4': "4️⃣",
-                            '5': "5️⃣",
-                            '6': "6️⃣",
-                            '7': "7️⃣",
-                            '8': "8️⃣",
-                            '9': "9️⃣",
-                            'P1' : '⏺️',
-                            'P2' : '#️⃣',
-                            'ai' : '#️⃣',
-                            None: "baka!"
-                            }
-            self.map = {}
-            self.turn = 1
-            self.ocupation = []
-            self.placements = {'d1' : [], 'd2' : []}
+            # For testing.
+            self.symbols = {'cornor': "🟦", 'void': "0️⃣", 
+                            '1': "1️⃣", '2': "2️⃣", '3': "3️⃣", '4': "4️⃣", '5': "5️⃣", '6': "6️⃣", '7': "7️⃣", '8': "8️⃣", '9': "9️⃣", 
+                            'P1' : '⏺️', 'P2' : '#️⃣', 'ai' : '#️⃣', None: "baka!"}
+            self.map = {} # Maping for game grid.
+            self.turn = 1 # For tracking Turns.
+            self.ocupation = [] # For tracking Occupied in grid.
+            self.placements = {'d1' : [], 'd2' : []} # For tracking palcements of markers in rows, columns, digonals.
 
         def run(self):
-            self.n = Inventory.order
-            self.ClientSide = Inventory.Client
-            self.mode = Inventory.mode
-            for r in range(1, self.n+1):
+            # fetching stuff from Core.
+            self.n = Inventory.order 
+            self.ClientSide = Inventory.Client 
+            self.mode = Inventory.mode 
+            for r in range(1, self.n+1): # Constructing map.
                 for c in range(1, self.n+1):
                     self.map[f'{r}{c}'] = 'void'
-            for i in range(1, self.n+1):
+            for i in range(1, self.n+1): # Constructing placements.
                 self.placements[f'r{i}'] = []
                 self.placements[f'c{i}'] = []
-
 
         def print_grid(self): # For printing structure, For testing.
                     print(self.symbols['cornor'], end="")
@@ -120,7 +109,6 @@ def MainCode():
                 self.placements = fetch['placements']
                 self.turn += 1
 
-
         def victory(self):
             for w in self.placements.values():
                 if len(w) == self.n:
@@ -138,45 +126,35 @@ def MainCode():
 
     class ClientSide:
         def __init__(self):
-            ...
+            self.Data = {'State': None,
+                         'GameData': None,
+                         'room_code': None}
         def run(self):
             self.engine = Inventory.Engine
-            self.address = Inventory.address
-            self.room_code = Inventory.room_code
+            self.Data['room_code'] = Inventory.room_code
             self.you = Inventory.you
-            self.data = {'map': self.engine.map,
-                        'ocupation': self.engine.ocupation,
-                        'placements': self.engine.placements,
-                        'reciver': self.engine.check_chance()}
-            asyncio.run_coroutine_threadsafe(self.connect(), Inventory.master_loop)
+            asyncio.run_coroutine_threadsafe(self.connect(Inventory.address), Inventory.master_loop)
+        async def connect(self, address):
+            self.websocket = await connect(f"ws://{address}")
 
+        async def CreateRoom(self):
+            print('websocket found!')
+            self.Data['State'] = 'create_room'
+            await self.websocket.send(json.dumps(self.Data))
+            print('data sent')
+            respond = json.loads(await self.websocket.recv())
+            self.Data['State'] = respond['State']
+            self.room_code = Inventory.room_code = respond['game_id']
+        
+        async def JoinRoom(self):
+            self.Data['State'] = 'join_room'
+            await self.websocket.send(json.dumps(self.Data))
+            respond = json.loads(await self.websocket.recv())
 
+            
+            
 
-
-        async def connect(self):
-            self.websocket = await connect(f"ws://{self.address}")
-
-        async def pull(self):
-            while True:
-                try: 
-                    req = await self.websocket.recv()
-                    if req.status_code == 200 and req.json()['reciver'] == self.engine.check_chance():
-                        self.engine.map = req.json()['map']
-                        self.engine.ocupation = req.json()['ocupation']
-                        self.engine.placements = req.json()['placements']
-                        break
-                    else:
-                        print(req.status_code)
-                        print(req.text)
-                        
-                except:
-                    ...
-            return self.data
-
-        async def push(self):
-            await self.websocket.send(json.dumps(self.data))
                 
-
 
     class GameButton(tk.Button):
         def __init__(self, master=None, cid=[], **kwargs):
@@ -192,7 +170,6 @@ def MainCode():
 
         def asynclick(self):
             asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.master_loop)
-
 
         async def OfflinePVP(self):
             if not self.engine.game_end():
@@ -247,8 +224,6 @@ def MainCode():
                 self.top.backframe.configure(background='silver')
                 self.top.text.configure(background='silver', foreground='white')
                 self.top.disallCbutton()
-            
-
 
 
     class GameWindow(tk.Tk):
@@ -268,7 +243,6 @@ def MainCode():
             self.gameframe.grid(row=2, column=0, padx=100, pady=50)
 
         def run(self):
-
             Inventory.Engine.run()
             self.n = Inventory.order
             self.mode = Inventory.mode
@@ -284,7 +258,6 @@ def MainCode():
         def disallCbutton(self):
             for button in self.gameframe.winfo_children():
                 button.configure(state=tk.DISABLED)
-
 
 
     class GridButton(tk.Button):
@@ -303,38 +276,38 @@ def MainCode():
             self.configure(state=tk.DISABLED)
 
 
-
     class MenuButton(tk.Button):
         def __init__(self, master=None, sideffect=None, **kwargs):
             super().__init__(master, **kwargs)
-            self.sideffect = sideffect
-            self.configure(command=self.start_game)
+            self.effects = {'start_offline': self.start_offline,
+                            'online_menu': self.start_online_menu, 
+                            'join_room': self.join_room, 
+                            'create_room': self.create_room}
+            self.configure(command=self.effects[sideffect])
             self._temp = False
         
-        def start_game(self):
+        def start_offline(self):
             self.master.destroy()
-            if self.sideffect == 'offline_mode':
-                Inventory.mode = 'offline'
-                Inventory.create_Game()
-            elif self.sideffect == 'online_mode':
-                Inventory.mode = 'online'
-                Inventory.start_servermenu()
-                self._temp = True
-            elif self.sideffect == 'create_room':
-                Inventory.address = self.master.address.get()
-                Inventory.you = 'P1'
-                Inventory.Client.run()
-            elif self.sideffect == 'join_room':
-                Inventory.address = self.master.room.get()
-                Inventory.room_code = self.master.room.get()
-                Inventory.you = 'P2'
-                Inventory.Client.run()
-
-            if self._temp == False:
-                Inventory.Game.run()
-            else:
-                self._temp = False
-
+            Inventory.mode = 'offline'
+            Inventory.create_Game()
+            Inventory.Game.run()
+        def start_online_menu(self):
+            Inventory.mode = 'online'
+            self.master.destroy()
+            Inventory.start_servermenu()
+        def create_room(self):
+            Inventory.address = self.master.address.get()
+            Inventory.you = 'P1'
+            Inventory.Client.run()
+            asyncio.run_coroutine_threadsafe(Inventory.Client.CreateRoom(), Inventory.master_loop)
+            self.master.destroy()
+        def join_room(self):
+            Inventory.address = self.master.address.get()
+            Inventory.room_code = self.master.room.get()
+            Inventory.you = 'P2'
+            Inventory.Client.run()
+            asyncio.run_coroutine_threadsafe(Inventory.Client.JoinRoom(), Inventory.master_loop)
+            self.master.destroy()
 
 
 
@@ -347,16 +320,11 @@ def MainCode():
             self.iconbitmap('resource/icon.ico')
             self.resizable(width=False, height=False)
             self.mainframe = tk.Frame(self, background='gray').grid(row=0, column=0)
-
             tk.Label(self.mainframe, text="Select Grid Size & Game Mode!", font=("Franklin Gothic Heavy", 22, "bold"), background='gray').grid(row=1, column=1, padx=20)
-            
             GridButton(self.mainframe, gid='3x3').grid(column=1, row=2, pady=20)
             GridButton(self.mainframe, gid='4x4').grid(column=1, row=3, pady=20)
-
-            MenuButton(self.mainframe, text="Start Game In Offline Mode", sideffect="offline_mode").grid(row=4,column=1, pady=20)
-            MenuButton(self.mainframe, text='Start Game In Online Mode', sideffect="online_mode").grid(row=5,column=1, pady=20)
-
-
+            MenuButton(self.mainframe, text="Start Game In Offline Mode", sideffect="start_offline").grid(row=4,column=1, pady=20)
+            MenuButton(self.mainframe, text='Start Game In Online Mode', sideffect="online_menu").grid(row=5,column=1, pady=20)
 
 
     class OnlineWindow(tk.Tk):
@@ -368,15 +336,12 @@ def MainCode():
             self.iconbitmap('resource/icon.ico')
             self.resizable(width=False, height=False)
             self.mainframe = tk.Frame(self, background='gray').grid(row=0, column=0)
-
             tk.Button(self.mainframe, text='back', command=self.back).grid(row=0, column=1)
             tk.Label(self.mainframe, text="Create or Join Room in Server!", font=("Franklin Gothic Heavy", 22, "bold"), background='gray').grid(row=1, column=1, padx=20)
-            
             self.address = tk.StringVar()
             tk.Label(text="Host:").grid(row=2,column=1, pady=5)
             tk.Entry(self.mainframe, textvariable=self.address).grid(row=3,column=1, pady=1)
             MenuButton(self.mainframe, text="Create a Room", sideffect='create_room').grid(row=4,column=1, pady=5)
-
             self.room = tk.StringVar()
             tk.Label(text="Room ID:").grid(row=5,column=1, pady=5)
             tk.Entry(self.mainframe, textvariable=self.room).grid(row=6,column=1, pady=1)
@@ -387,11 +352,12 @@ def MainCode():
             Inventory.start_mainmenu()
 
 
+
+
     Inventory.master_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(Inventory.master_loop)
     Inventory.create_Instances()
     Inventory.master_loop.run_in_executor(None, Inventory.start_mainmenu)
-
     Inventory.master_loop.run_forever()
 
 if __name__ == "__main__":

@@ -11,31 +11,38 @@ async def create_game(wb):
     while gid in games:
         gid = random.randint(1000, 9999)
     games[gid] = {'status': 'open', 'players': [wb]}
-    wb.send({'status':201 , 'message':'game created sucessfully', 'game_id':gid})
+    await wb.send(json.dumps({'State': 'room_created', 'game_id': gid}))
+    print(games)
 
-async def manage_games(msg, wb):
-    if msg['game_id']:
-        gid = msg['game_id']
-        if msg['JoinReq'] and games[gid]['status'] == 'closed':
-            wb.send({'status':204  , 'message':'game is full!'})
-        if msg['JoinReq'] and games[gid]['status'] == 'open':
+async def manage_game(data, wb):
+    pass
+
+async def join_game(data, wb):
+        gid = data['room_code']
+        if gid in games and games[gid]['status'] == 'open':
             games[gid]['status'] = 'closed'
             games[gid]['players'].append(wb)
-            wb.send({'status':202 , 'message':'joined sucessfully'})
-            games[gid]['players'][0].send({'status':202 , 'message':'game starting...'})
+            await wb.send(json.dumps({'status': 202, 'message': 'joined sucessfully'}))
+            await games[gid]['players'][0].send(json.dumps({'status': 202, 'message': 'game starting...'}))
+            print(games)
         else:
-            ...
+            await wb.send(json.dumps({'status': 404, 'message': 'room not found or closed'}))
 
-    else:
-        create_game(wb)
 
     
 
 async def echoflow(websocket):
     async for message in websocket:
-        message = json.loads(message)
-        print('revived:', message, 'at', time.time())
-        await manage_games(message, websocket)
+        data = json.loads(message)
+        print('revived:', data, 'at', time.time())
+        # Match the key case and only call the required coroutine
+        state = data.get('State') or data.get('state')
+        if state == 'create_room':
+            await create_game(websocket)
+        elif state == 'join_room':
+            await join_game(data, websocket)
+        elif state == 'in_game':
+            await manage_game(data, websocket)
 
 async def main():
     domain = 'localhost'
