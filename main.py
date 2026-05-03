@@ -129,6 +129,7 @@ def MainCode():
             self.Data = {'State': None,
                          'GameData': None,
                          'room_code': None}
+            self.websocket = None
         def run(self):
             self.engine = Inventory.Engine
             self.Data['room_code'] = Inventory.room_code
@@ -138,7 +139,8 @@ def MainCode():
             self.websocket = await connect(f"ws://{address}")
 
         async def CreateRoom(self):
-            print('websocket found!')
+            while not self.websocket:
+                await asyncio.sleep(0.1)
             self.Data['State'] = 'create_room'
             await self.websocket.send(json.dumps(self.Data))
             print('data sent')
@@ -167,7 +169,6 @@ def MainCode():
             self.engine = self.top.engine
             self.gamemodes = {'offline': self.OfflinePVP, 'online': self.OnlinePVP}
             self.configure(command=self.asynclick, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
-
         def asynclick(self):
             asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.master_loop)
 
@@ -356,6 +357,7 @@ def MainCode():
 
     Inventory.master_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(Inventory.master_loop)
+    Inventory.master_loop.set_debug(True)
     Inventory.create_Instances()
     Inventory.master_loop.run_in_executor(None, Inventory.start_mainmenu)
     Inventory.master_loop.run_forever()
