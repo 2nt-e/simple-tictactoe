@@ -7,10 +7,10 @@ import json
 games = {}
 
 async def create_game(wb):
-    gid = random.randint(1000, 9999)
+    gid = str(random.randint(1000, 9999))
     while gid in games:
-        gid = random.randint(1000, 9999)
-    games[gid] = {'status': 'open', 'players': [wb]}
+        gid = str(random.randint(1000, 9999))
+    games[gid] = {'Condition': 'open', 'players': [wb]}
     await wb.send(json.dumps({'State': 'room_created', 'game_id': gid}))
     print(games)
 
@@ -19,14 +19,14 @@ async def manage_game(data, wb):
 
 async def join_game(data, wb):
         gid = data['room_code']
-        if gid in games and games[gid]['status'] == 'open':
-            games[gid]['status'] = 'closed'
+        if gid in games and games[gid]['Condition'] == 'open':
+            games[gid]['Condition'] = 'closed'
             games[gid]['players'].append(wb)
-            await wb.send(json.dumps({'status': 202, 'message': 'joined sucessfully'}))
-            await games[gid]['players'][0].send(json.dumps({'status': 202, 'message': 'game starting...'}))
+            await wb.send(json.dumps({'State': 'room_ready'}))
+            await games[gid]['players'][0].send(json.dumps({'State': 'room_ready'}))
             print(games)
         else:
-            await wb.send(json.dumps({'status': 404, 'message': 'room not found or closed'}))
+            await wb.send(json.dumps({'State': 'room_not_found / room_closed'}))
 
 
     

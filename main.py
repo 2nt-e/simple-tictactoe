@@ -134,7 +134,8 @@ def MainCode():
             self.engine = Inventory.Engine
             self.Data['room_code'] = Inventory.room_code
             self.you = Inventory.you
-            asyncio.run_coroutine_threadsafe(self.connect(Inventory.address), Inventory.master_loop)
+            future_connect = asyncio.run_coroutine_threadsafe(self.connect(Inventory.address), Inventory.master_loop)
+            future_connect.add_done_callback(handle_result)
         async def connect(self, address):
             self.websocket = await connect(f"ws://{address}")
 
@@ -143,15 +144,26 @@ def MainCode():
                 await asyncio.sleep(0.1)
             self.Data['State'] = 'create_room'
             await self.websocket.send(json.dumps(self.Data))
-            print('data sent')
             respond = json.loads(await self.websocket.recv())
+            print(respond)
             self.Data['State'] = respond['State']
             self.room_code = Inventory.room_code = respond['game_id']
         
+        async def WaitJoin(self):
+            while not self.websocket:
+                await asyncio.sleep(0.1)
+            respond = json.loads(await self.websocket.recv())
+            print(respond)
+        
         async def JoinRoom(self):
+            while not self.websocket:
+                await asyncio.sleep(0.1)
             self.Data['State'] = 'join_room'
             await self.websocket.send(json.dumps(self.Data))
             respond = json.loads(await self.websocket.recv())
+            print(respond)
+            if respond['State'] == 'room_ready':
+                self.Data['State'] = respond['State']
 
             
             
@@ -162,16 +174,15 @@ def MainCode():
         def __init__(self, master=None, cid=[], **kwargs):
             self.cid = cid
             super().__init__(master, **kwargs)
-            self.images = {'0': tk.PhotoImage(file='resource/white.png'),
-                        'P1': tk.PhotoImage(file='resource/red.png'),
-                        'P2': tk.PhotoImage(file='resource/blue.png')}
+            self.images = Inventory.GB_Images
             self.top = self.master.master.master
             self.engine = self.top.engine
             self.gamemodes = {'offline': self.OfflinePVP, 'online': self.OnlinePVP}
             self.configure(command=self.asynclick, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
         def asynclick(self):
-            asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.master_loop)
-
+            future_asynclick = asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.master_loop)
+            future_asynclick.add_done_callback(handle_result)
+            
         async def OfflinePVP(self):
             if not self.engine.game_end():
                 p = self.engine.check_chance()
@@ -231,6 +242,9 @@ def MainCode():
         def __init__(self, *args, **kwargs):
 
             super().__init__(*args, **kwargs)
+            Inventory.GB_Images = {'0': tk.PhotoImage(file='resource/white.png'),
+                        'P1': tk.PhotoImage(file='resource/red.png'),
+                        'P2': tk.PhotoImage(file='resource/blue.png')}
             self.title("Simple TicTacToe")
             self.iconbitmap('resource/icon.ico')
             self.resizable(width=False, height=False)
@@ -300,14 +314,18 @@ def MainCode():
             Inventory.address = self.master.address.get()
             Inventory.you = 'P1'
             Inventory.Client.run()
-            asyncio.run_coroutine_threadsafe(Inventory.Client.CreateRoom(), Inventory.master_loop)
+            future_createroom = asyncio.run_coroutine_threadsafe(Inventory.Client.CreateRoom(), Inventory.master_loop)
+            future_createroom.add_done_callback(handle_result)
+            future_waitjoin = asyncio.run_coroutine_threadsafe(Inventory.Client.WaitJoin(), Inventory.master_loop)
+            future_waitjoin.add_done_callback(handle_result)
             self.master.destroy()
         def join_room(self):
             Inventory.address = self.master.address.get()
             Inventory.room_code = self.master.room.get()
             Inventory.you = 'P2'
             Inventory.Client.run()
-            asyncio.run_coroutine_threadsafe(Inventory.Client.JoinRoom(), Inventory.master_loop)
+            future_joinroom = asyncio.run_coroutine_threadsafe(Inventory.Client.JoinRoom(), Inventory.master_loop)
+            future_joinroom.add_done_callback(handle_result)
             self.master.destroy()
 
 
@@ -353,7 +371,13 @@ def MainCode():
             Inventory.start_mainmenu()
 
 
-
+    def handle_result(future):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"Exception in Thread_A: {e}")
+            import traceback
+            traceback.print_exc()
 
     Inventory.master_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(Inventory.master_loop)
