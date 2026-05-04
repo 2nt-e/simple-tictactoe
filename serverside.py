@@ -1,6 +1,6 @@
 import asyncio
 from websockets.asyncio.server import serve
-import time
+import datetime
 import random
 import json
 
@@ -34,15 +34,19 @@ async def join_game(data, wb):
 async def echoflow(websocket):
     async for message in websocket:
         data = json.loads(message)
-        print('revived:', data, 'at', time.time())
-        # Match the key case and only call the required coroutine
-        state = data.get('State') or data.get('state')
+        print('revived:', data, 'at', datetime.datetime.now())
+        try:
+            state = data.get('State')
+        except:
+            ...
         if state == 'create_room':
             await create_game(websocket)
         elif state == 'join_room':
             await join_game(data, websocket)
         elif state == 'in_game':
             await manage_game(data, websocket)
+        else:
+            ...
 
 async def main():
     domain = 'localhost'
