@@ -9,12 +9,29 @@ import json
 def MainCode():
 
 
+    class MainWindow(tk.Tk):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.geometry('500x500')
+            self.title("TicTacToe")
+            self.iconbitmap('resource/icon.ico')
+            self.resizable(width=False, height=False)
+            self.Mframe = None
+
+        def change_frame(self, Nframe):
+            if self.Mframe:
+                self.Mframe.destroy()
+            self.Mframe = Nframe
+            self.Mframe.grid(row=0, column=0)
+
+
     class Core:
         def __init__(self):
             self.memory()
             self.Engine = None
             self.Client = None
             self.Game = None
+            self.background_loop = None
         def memory(self):
             self.order = 3
             self.mode = 'offline'
@@ -26,15 +43,17 @@ def MainCode():
             self.Engine = MainEngine()
             self.Client = ClientSide()
         def create_Game(self):
-            self.Game = GameWindow()
-        
+            self.Game = GameWindow(self.Window)
         def start_mainmenu(self):
-            MenuWindow().mainloop()
+            self.menu = MenuWindow(self.Window)
         def start_servermenu(self):
-            OnlineWindow().mainloop()
+            self.onlinemenu = OnlineWindow(self.Window)
 
-
-    Inventory = Core()
+        async def StartWindow(self):
+            self.Window = MainWindow()
+            self.start_mainmenu()
+            Inventory.Window.change_frame(self.menu)
+            self.Window.mainloop()
 
 
     class MainEngine:
@@ -134,7 +153,7 @@ def MainCode():
             self.engine = Inventory.Engine
             self.Data['room_code'] = Inventory.room_code
             self.you = Inventory.you
-            future_connect = asyncio.run_coroutine_threadsafe(self.connect(Inventory.address), Inventory.master_loop)
+            future_connect = asyncio.run_coroutine_threadsafe(self.connect(Inventory.address), Inventory.background_loop)
             future_connect.add_done_callback(handle_result)
         async def connect(self, address):
             self.websocket = await connect(f"ws://{address}")
@@ -165,11 +184,7 @@ def MainCode():
             if respond['State'] == 'room_ready':
                 self.Data['State'] = respond['State']
 
-            
-            
-
                 
-
     class GameButton(tk.Button):
         def __init__(self, master=None, cid=[], **kwargs):
             self.cid = cid
@@ -180,27 +195,27 @@ def MainCode():
             self.gamemodes = {'offline': self.OfflinePVP, 'online': self.OnlinePVP}
             self.configure(command=self.asynclick, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
         def asynclick(self):
-            future_asynclick = asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.master_loop)
+            future_asynclick = asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.background_loop)
             future_asynclick.add_done_callback(handle_result)
             
         async def OfflinePVP(self):
             if not self.engine.game_end():
                 p = self.engine.check_chance()
                 colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
-                colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
+                self.colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
                 print(f"Player-{p} proceed at {self.cid}")
                 self.configure(state=tk.DISABLED, image=self.images[p])
                 await self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
                 self.top.backframe.configure(background=colors[self.engine.check_chance()])
-                self.top.text.configure(background=colors[self.engine.check_chance()], foreground=colors_name[self.engine.check_chance()])
-                self.top.txtvar.set(f"{colors_name[self.engine.check_chance()]}'s Turn!")
+                self.top.text.configure(background=colors[self.engine.check_chance()], foreground=self.colors_name[self.engine.check_chance()])
+                self.top.txtvar.set(f"{self.colors_name[self.engine.check_chance()]}'s Turn!")
                 self.engine.print_grid()
                 winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
             if self.engine.game_end():
                 end = self.engine.game_end()
                 messages = {
                     'tie': "Game ended with Tie.",
-                    'victory': f"Game ended, {colors_name[self.engine.victory()]} won!",}
+                    'victory': f"Game ended, {self.colors_name[self.engine.victory()]} won!",}
                 better.print(messages[end])
                 self.master.master.master.txtvar.set(messages[self.engine.game_end()])
                 winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
@@ -238,16 +253,13 @@ def MainCode():
                 self.top.disallCbutton()
 
 
-    class GameWindow(tk.Tk):
-        def __init__(self, *args, **kwargs):
+    class GameWindow(tk.Frame):
+        def __init__(self, master=None, *args, **kwargs):
 
-            super().__init__(*args, **kwargs)
+            super().__init__(master, *args, **kwargs)
             Inventory.GB_Images = {'0': tk.PhotoImage(file='resource/white.png'),
                         'P1': tk.PhotoImage(file='resource/red.png'),
                         'P2': tk.PhotoImage(file='resource/blue.png')}
-            self.title("Simple TicTacToe")
-            self.iconbitmap('resource/icon.ico')
-            self.resizable(width=False, height=False)
             self.backframe = tk.Frame(self, background='silver')
             self.backframe.grid(row=0, column=0)
             self.txtvar = tk.StringVar()
@@ -262,13 +274,10 @@ def MainCode():
             self.n = Inventory.order
             self.mode = Inventory.mode
             self.engine = Inventory.Engine
-            size = self.n * 100 + 200
-            self.geometry(f'{size}x{size}')
             for i in range(1, self.n+1):
                 for j in range(1, self.n+1):
                     GameButton(self.gameframe, cid=[i, j]).grid(row=i, column=j, padx=1, pady=1)
             self.engine.print_grid()
-            self.mainloop()
             
         def disallCbutton(self):
             for button in self.gameframe.winfo_children():
@@ -297,26 +306,27 @@ def MainCode():
             self.effects = {'start_offline': self.start_offline,
                             'online_menu': self.start_online_menu, 
                             'join_room': self.join_room, 
-                            'create_room': self.create_room}
+                            'create_room': self.create_room,
+                            None:None}
             self.configure(command=self.effects[sideffect])
             self._temp = False
         
         def start_offline(self):
-            self.master.destroy()
             Inventory.mode = 'offline'
             Inventory.create_Game()
             Inventory.Game.run()
+            Inventory.Window.change_frame(Inventory.Game)
         def start_online_menu(self):
             Inventory.mode = 'online'
-            self.master.destroy()
             Inventory.start_servermenu()
+            Inventory.Window.change_frame(Inventory.onlinemenu)
         def create_room(self):
             Inventory.address = self.master.address.get()
             Inventory.you = 'P1'
             Inventory.Client.run()
-            future_createroom = asyncio.run_coroutine_threadsafe(Inventory.Client.CreateRoom(), Inventory.master_loop)
+            future_createroom = asyncio.run_coroutine_threadsafe(Inventory.Client.CreateRoom(), Inventory.background_loop)
             future_createroom.add_done_callback(handle_result)
-            future_waitjoin = asyncio.run_coroutine_threadsafe(Inventory.Client.WaitJoin(), Inventory.master_loop)
+            future_waitjoin = asyncio.run_coroutine_threadsafe(Inventory.Client.WaitJoin(), Inventory.background_loop)
             future_waitjoin.add_done_callback(handle_result)
             self.master.destroy()
         def join_room(self):
@@ -324,51 +334,47 @@ def MainCode():
             Inventory.room_code = self.master.room.get()
             Inventory.you = 'P2'
             Inventory.Client.run()
-            future_joinroom = asyncio.run_coroutine_threadsafe(Inventory.Client.JoinRoom(), Inventory.master_loop)
+            future_joinroom = asyncio.run_coroutine_threadsafe(Inventory.Client.JoinRoom(), Inventory.background_loop)
             future_joinroom.add_done_callback(handle_result)
             self.master.destroy()
 
 
 
-    class MenuWindow(tk.Tk):
-        def __init__(self, *args, **kwargs):
+    class MenuWindow(tk.Frame):
+        def __init__(self, master=None, *args, **kwargs):
             self.n = 3
-            super().__init__(*args, **kwargs)
-            self.geometry('500x500')
-            self.title("Simple Menu")
-            self.iconbitmap('resource/icon.ico')
-            self.resizable(width=False, height=False)
-            self.mainframe = tk.Frame(self, background='gray').grid(row=0, column=0)
+            super().__init__(master, *args, **kwargs)
+            self.mainframe = tk.Frame(self, background='gray')
+            self.mainframe.grid(row=0, column=0)
             tk.Label(self.mainframe, text="Select Grid Size & Game Mode!", font=("Franklin Gothic Heavy", 22, "bold"), background='gray').grid(row=1, column=1, padx=20)
             GridButton(self.mainframe, gid='3x3').grid(column=1, row=2, pady=20)
             GridButton(self.mainframe, gid='4x4').grid(column=1, row=3, pady=20)
             MenuButton(self.mainframe, text="Start Game In Offline Mode", sideffect="start_offline").grid(row=4,column=1, pady=20)
             MenuButton(self.mainframe, text='Start Game In Online Mode', sideffect="online_menu").grid(row=5,column=1, pady=20)
+        
 
 
-    class OnlineWindow(tk.Tk):
+
+    class OnlineWindow(tk.Frame):
         def __init__(self, *args, **kwargs):
-            self.n = 3
             super().__init__(*args, **kwargs)
-            self.geometry('500x500')
-            self.title("Simple TicTacToe")
-            self.iconbitmap('resource/icon.ico')
-            self.resizable(width=False, height=False)
-            self.mainframe = tk.Frame(self, background='gray').grid(row=0, column=0)
-            tk.Button(self.mainframe, text='back', command=self.back).grid(row=0, column=1)
+            self.mainframe = tk.Frame(self, background='gray')
+            self.mainframe.grid(row=0, column=0, sticky='NSEW')
+            tk.Button(self.mainframe, text='back', command=self.back).grid(row=0, column=1, sticky="nw")
             tk.Label(self.mainframe, text="Create or Join Room in Server!", font=("Franklin Gothic Heavy", 22, "bold"), background='gray').grid(row=1, column=1, padx=20)
             self.address = tk.StringVar()
-            tk.Label(text="Host:").grid(row=2,column=1, pady=5)
+            tk.Label(self.mainframe, text="Host:").grid(row=2,column=1, pady=5)
             tk.Entry(self.mainframe, textvariable=self.address).grid(row=3,column=1, pady=1)
             MenuButton(self.mainframe, text="Create a Room", sideffect='create_room').grid(row=4,column=1, pady=5)
             self.room = tk.StringVar()
-            tk.Label(text="Room ID:").grid(row=5,column=1, pady=5)
+            tk.Label(self.mainframe, text="Room ID:").grid(row=5,column=1, pady=5)
             tk.Entry(self.mainframe, textvariable=self.room).grid(row=6,column=1, pady=1)
             MenuButton(self.mainframe, text="Or join a Room", sideffect='join_room').grid(row=7,column=1, pady=5)
 
         def back(self):
-            self.destroy()
             Inventory.start_mainmenu()
+            Inventory.Window.change_frame(Inventory.menu)
+
 
 
     def handle_result(future):
@@ -379,12 +385,16 @@ def MainCode():
             import traceback
             traceback.print_exc()
 
-    Inventory.master_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(Inventory.master_loop)
-    Inventory.master_loop.set_debug(True)
+    Inventory = Core()
     Inventory.create_Instances()
-    Inventory.master_loop.run_in_executor(None, Inventory.start_mainmenu)
-    Inventory.master_loop.run_forever()
+    mainloop = asyncio.new_event_loop()
+    mainloop.set_debug(True)
+    asyncio.set_event_loop(mainloop)
+    Inventory.background_loop = asyncio.new_event_loop()
+    Inventory.background_loop.set_debug(True)
+    mainloop.run_in_executor(None, Inventory.background_loop.run_forever)
+    mainloop.run_until_complete(Inventory.StartWindow())
+
 
 if __name__ == "__main__":
     MainCode()
