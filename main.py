@@ -3,14 +3,14 @@ import tkinter as tk
 import os
 import sys
 try:
+    import playsound
+except:
+    os.system(f'"{sys.executable}" -m pip install playsound')
+    import playsound
+try:
     import winsound
     soundplayer = 'winsound'
 except:
-    try:
-        import playsound
-    except:
-        os.system(f'"{sys.executable}" -m pip install playsound')
-        import playsound
     soundplayer = 'playsound'
 import asyncio
 try:
@@ -22,38 +22,28 @@ import json
 
 
 def MainCode():
-
-
-    class MainWindow(tk.Tk):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.geometry('485x500')
-            self.title("TicTacToe")
-            self.iconbitmap('resource/icon.ico')
-            self.resizable(width=False, height=False)
-            self.Mframe = None
-
-        def change_frame(self, Nframe):
-            if self.Mframe:
-                self.Mframe.destroy()
-            self.Mframe = Nframe
-            self.Mframe.grid(row=0, column=0)
-
-
     class Core:
         def __init__(self):
-            self.memory()
+            self.create_memory()
+            self.Window = None
+            self.menu = None
+            self.onlinemenu = None
             self.Engine = None
-            self.Client = None
+            self.WSClient = None
             self.Game = None
             self.gui_loop = None
             self.background_loop = None
-        def memory(self):
+        def create_memory(self):
             self.order = 3
             self.mode = 'offline'
             self.address = None
             self.room_code = None
             self.you = None
+        
+        def background_music(self):
+            import playsound
+            while True:
+                playsound.playsound(r'resource\bg_music.wav')
 
         def create_loops(self):
             self.gui_loop = asyncio.new_event_loop()
@@ -62,16 +52,19 @@ def MainCode():
             self.background_loop = asyncio.new_event_loop()
             self.background_loop.set_debug(True)
             self.gui_loop.run_in_executor(None, self.background_loop.run_forever)
+            self.gui_loop.run_in_executor(None, self.background_music)
             if soundplayer != 'winsound':
                 self.sounds_loop = asyncio.new_event_loop()
                 self.sounds_loop.set_debug(True)
                 self.gui_loop.run_in_executor(None, self.sounds_loop.run_forever)
-        def create_Instances(self):
-            self.Engine = MainEngine()
-            self.Client = ClientSide()
+        def create_GEngine(self):
+            self.Engine = ArialEngine()
+        def create_WSClient(self):
+            self.WSClient = WSClient()
         def create_Game(self):
             self.Game = GameWindow(self.Window)
         def create_mainmenu(self):
+            self.Window.geometry('485x500')
             self.menu = MenuWindow(self.Window)
         def create_onlinemenu(self):
             self.Window.geometry('485x275')
@@ -84,7 +77,23 @@ def MainCode():
             self.Window.mainloop()
 
 
-    class MainEngine:
+    class MainWindow(tk.Tk):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.geometry('50x50')
+            self.title("TicTacToe")
+            self.iconbitmap('resource/icon.ico')
+            self.resizable(width=False, height=False)
+            self.Mframe = None
+
+        def change_frame(self, Nframe):
+            if self.Mframe:
+                self.Mframe.destroy()
+            self.Mframe = Nframe
+            self.Mframe.grid(row=0, column=0)
+
+
+    class ArialEngine:
         def __init__(self):
             # For testing.
             self.symbols = {'cornor': "🟦", 'void': "0️⃣", 
@@ -98,7 +107,7 @@ def MainCode():
         def run(self):
             # fetching stuff from Core.
             self.n = Inventory.order 
-            self.ClientSide = Inventory.Client 
+            self.WSClient = Inventory.WSClient 
             self.mode = Inventory.mode 
             for r in range(1, self.n+1): # Constructing map.
                 for c in range(1, self.n+1):
@@ -164,7 +173,7 @@ def MainCode():
                 return False
 
 
-    class ClientSide:
+    class WSClient:
         def __init__(self):
             self.Data = {'State': None,
                          'GameData': None,
@@ -195,10 +204,8 @@ def MainCode():
             self.Data['room_code'] = Inventory.room_code = respond['game_id']
         
         async def WaitJoin(self):
-            # while not self.websocket:
-            #     await asyncio.sleep(0.1)
-            # while self.Data['State'] != 'room_ready':
-            #     await asyncio.sleep(0.1)
+            while self.Data['State'] != 'room_created':
+                await asyncio.sleep(0.1)
             respond = json.loads(await self.websocket.recv())
             print(respond)
         
@@ -209,7 +216,7 @@ def MainCode():
             await self.websocket.send(json.dumps(self.Data))
             respond = json.loads(await self.websocket.recv())
             print(respond)
-            if respond['State'] == 'room_ready':
+            if respond['State'] == 'room_created':
                 self.Data['State'] = respond['State']
 
         async def Game_send(self, change):
@@ -218,6 +225,7 @@ def MainCode():
             await self.websocket.send(json.dumps(self.Data))
         async def Game_recv(self):
             respond = json.loads(await self.websocket.recv())
+            # print(respond)
             return respond['change']
 
                 
@@ -247,13 +255,14 @@ def MainCode():
             self.text = tk.Label(self.backframe, textvariable=self.txtvar, background='silver', font=("Franklin Gothic Heavy", 22, "bold"), foreground='white')
             self.text.grid(row=1, column=0, pady=10)
             self.gameframe = tk.Frame(self.backframe, border=1, borderwidth=5, relief="solid", background="#212124")
-            self.gameframe.grid(row=2, column=0, padx=100, pady=50)
+            self.gameframe.grid(row=3, column=0, padx=100, pady=50)
             self.gamemodes = {'offline': self.OfflineClick,
                                'online': self.OnlineClick
                                }
             self.EnabledGB = {}
 
         def run(self):
+            Inventory.create_GEngine()
             Inventory.Engine.run()
             self.n = Inventory.order
             size = self.n * 100 + 200
@@ -266,7 +275,7 @@ def MainCode():
                     GB = GameButton(self.gameframe, cid=Cid)
                     GB.grid(row=i, column=j, padx=1, pady=1)
                     self.EnabledGB[f'{Cid[0]}{Cid[1]}'] = GB
-            self.engine.print_grid()
+            # self.engine.print_grid()
             if self.mode == 'online':
                 if Inventory.you == 'P2':
                     f= asyncio.run_coroutine_threadsafe(self.WaitClick(), Inventory.background_loop)
@@ -283,14 +292,14 @@ def MainCode():
             p = self.engine.check_chance()
             colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
             self.colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
-            print(f"Player-{p} proceed at {Gbutton.cid}")
+            # print(f"Player-{p} proceed at {Gbutton.cid}")
             Gbutton.configure(state=tk.DISABLED, image=Inventory.GB_Images[p])
             self.EnabledGB.pop(f'{Gbutton.cid[0]}{Gbutton.cid[1]}')
             await self.engine.implement(change=f'{Gbutton.cid[0]}{Gbutton.cid[1]}')
             self.backframe.configure(background=colors[self.engine.check_chance()])
             self.text.configure(background=colors[self.engine.check_chance()], foreground=self.colors_name[self.engine.check_chance()])
             self.txtvar.set(f"{self.colors_name[self.engine.check_chance()]}'s Turn!")
-            self.engine.print_grid()
+            # self.engine.print_grid()
             if soundplayer == 'winsound':
                 winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
             else:
@@ -300,7 +309,6 @@ def MainCode():
                 messages = {
                     'tie': "Game ended with Tie.",
                     'victory': f"Game ended, {self.colors_name[self.engine.victory()]} won!",}
-                better.print(messages[end])
                 self.txtvar.set(messages[end])
                 if soundplayer == 'winsound':
                     winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
@@ -309,20 +317,24 @@ def MainCode():
                 self.backframe.configure(background='silver')
                 self.text.configure(background='silver', foreground='white')
                 self.disable_all_Gbuttons() 
+                ExitButton = tk.Button(self.backframe, text="<==| Exit to Menu", command=self.restart_and_menu)
+                ExitButton.grid(row=2, column=0, pady=10)
             return Gbutton.cid
         async def OnlineClick(self, Gbutton):
             cid = await self.OfflineClick(Gbutton)
-            await Inventory.Client.Game_send(cid)
+            await Inventory.WSClient.Game_send(cid)
             if not self.engine.game_end():
                 await self.WaitClick()
         async def WaitClick(self):
             self.disable_all_Gbuttons()
-            print('wait for click, started!')
-            Cid = await Inventory.Client.Game_recv()
-            print(self.EnabledGB)
+            Cid = await Inventory.WSClient.Game_recv()
             await self.OfflineClick(self.EnabledGB[f'{Cid[0]}{Cid[1]}'])
             self.enable_enabled_Gbuttons()
-
+        
+        def restart_and_menu(self):
+                Inventory.create_memory()
+                Inventory.create_mainmenu()
+                Inventory.Window.change_frame(Inventory.menu)
 
 
     class GridButton(tk.Button):
@@ -399,13 +411,14 @@ def MainCode():
         async def create_room(self):
             Inventory.address = self.address.get()
             Inventory.you = 'P1'
-            Inventory.Client.run()
-            await Inventory.Client.CreateRoom()
-            # while Inventory.room_code == None:
-            #     await asyncio.sleep(0.1)
+            Inventory.create_WSClient()
+            Inventory.WSClient.run()
+            await Inventory.WSClient.CreateRoom()
             CMessage = MessageWindow(Inventory.Window, message=f"Room Created! Code: {Inventory.room_code}")
             Inventory.Window.change_frame(CMessage)
-            await Inventory.Client.WaitJoin()
+            print('waiting started')
+            await Inventory.WSClient.WaitJoin()
+            print('waiting ended')
             Inventory.create_Game()
             Inventory.Game.run()
             Inventory.Window.change_frame(Inventory.Game)
@@ -413,8 +426,9 @@ def MainCode():
             Inventory.address = self.address.get()
             Inventory.room_code = self.room.get()
             Inventory.you = 'P2'
-            Inventory.Client.run()
-            await Inventory.Client.JoinRoom()
+            Inventory.create_WSClient()
+            Inventory.WSClient.run()
+            await Inventory.WSClient.JoinRoom()
             Inventory.create_Game()
             Inventory.Game.run()
             Inventory.Window.change_frame(Inventory.Game)
@@ -441,15 +455,19 @@ def MainCode():
             print(f"Exception in Thread_A: {e}")
             import traceback
             traceback.print_exc()
+
     async def Splayer(sound):
         sound()
 
+
     Inventory = Core()
-    Inventory.create_Instances()
+    # Inventory.create_Instances()
     Inventory.create_loops()
     Inventory.gui_loop.run_until_complete(Inventory.StartWindow())
-    asyncio.run_coroutine_threadsafe(Inventory.Client.disconnect(), Inventory.background_loop)
-
+    if Inventory.WSClient:
+        f= asyncio.run_coroutine_threadsafe(Inventory.WSClient.disconnect(), Inventory.background_loop)
+        f.add_done_callback(handle_result)
+ 
 
 
 if __name__ == "__main__":

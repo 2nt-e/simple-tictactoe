@@ -25,7 +25,7 @@ async def manage_game(data, wb):
 
 async def join_game(data, wb):
         gid = data['room_code']
-        if gid in games and games[gid]['Condition'] == 'open':
+        if (gid in games) and (games[gid]['Condition'] == 'open'):
             games[gid]['Condition'] = 'closed'
             games[gid]['players'].append(wb)
             await wb.send(json.dumps({'State': 'room_ready'}))
