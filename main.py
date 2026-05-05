@@ -31,6 +31,7 @@ def MainCode():
             self.Engine = None
             self.Client = None
             self.Game = None
+            self.gui_loop = None
             self.background_loop = None
         def memory(self):
             self.order = 3
@@ -39,6 +40,13 @@ def MainCode():
             self.room_code = None
             self.you = None
 
+        def create_loops(self):
+            self.gui_loop = asyncio.new_event_loop()
+            self.gui_loop.set_debug(True)
+            asyncio.set_event_loop(self.gui_loop)
+            self.background_loop = asyncio.new_event_loop()
+            self.background_loop.set_debug(True)
+            self.gui_loop.run_in_executor(None, Inventory.background_loop.run_forever)
         def create_Instances(self):
             self.Engine = MainEngine()
             self.Client = ClientSide()
@@ -121,13 +129,6 @@ def MainCode():
                     self.placements['d1'].append(chance)
                 if int(change[0]) + int(change[1]) == self.n+1:
                     self.placements['d2'].append(chance)
-            if self.mode == 'online':
-                await self.Onhand.push() 
-                fetch = await self.Onhand.pull()
-                self.map = fetch['map']
-                self.ocupation = fetch['ocupation']
-                self.placements = fetch['placements']
-                self.turn += 1
 
         def victory(self):
             for w in self.placements.values():
@@ -142,7 +143,7 @@ def MainCode():
                 return "tie"
             else:
                 return False
-        
+
 
     class ClientSide:
         def __init__(self):
@@ -172,7 +173,7 @@ def MainCode():
             respond = json.loads(await self.websocket.recv())
             print(respond)
             self.Data['State'] = respond['State']
-            self.room_code = Inventory.room_code = respond['game_id']
+            self.Data['room_code'] = Inventory.room_code = respond['game_id']
         
         async def WaitJoin(self):
             # while not self.websocket:
@@ -192,6 +193,14 @@ def MainCode():
             if respond['State'] == 'room_ready':
                 self.Data['State'] = respond['State']
 
+        async def Game_send(self, change):
+            self.Data['State'] = 'game_send'
+            self.Data['change'] = change
+            await self.websocket.send(json.dumps(self.Data))
+        async def Game_recv(self):
+            respond = json.loads(await self.websocket.recv())
+            return respond['change']
+
                 
     class GameButton(tk.Button):
         def __init__(self, master=None, cid=[], **kwargs):
@@ -199,67 +208,11 @@ def MainCode():
             super().__init__(master, **kwargs)
             self.images = Inventory.GB_Images
             self.top = self.master.master.master
-            self.engine = self.top.engine
-            self.gamemodes = {'offline': self.OfflinePVP, 'online': self.OnlinePVP}
             self.configure(command=self.asynclick, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
         def asynclick(self):
-            future_asynclick = asyncio.run_coroutine_threadsafe(self.gamemodes[self.top.engine.mode](), Inventory.background_loop)
+            future_asynclick = asyncio.run_coroutine_threadsafe(self.top.gamemodes[self.top.engine.mode](self), Inventory.background_loop)
             future_asynclick.add_done_callback(handle_result)
             
-        async def OfflinePVP(self):
-            if not self.engine.game_end():
-                p = self.engine.check_chance()
-                colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
-                self.colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
-                print(f"Player-{p} proceed at {self.cid}")
-                self.configure(state=tk.DISABLED, image=self.images[p])
-                await self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
-                self.top.backframe.configure(background=colors[self.engine.check_chance()])
-                self.top.text.configure(background=colors[self.engine.check_chance()], foreground=self.colors_name[self.engine.check_chance()])
-                self.top.txtvar.set(f"{self.colors_name[self.engine.check_chance()]}'s Turn!")
-                self.engine.print_grid()
-                winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-            if self.engine.game_end():
-                end = self.engine.game_end()
-                messages = {
-                    'tie': "Game ended with Tie.",
-                    'victory': f"Game ended, {self.colors_name[self.engine.victory()]} won!",}
-                better.print(messages[end])
-                self.master.master.master.txtvar.set(messages[self.engine.game_end()])
-                winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-                self.top.backframe.configure(background='silver')
-                self.top.text.configure(background='silver', foreground='white')
-                self.top.disallCbutton()
-
-        async def OnlinePVP(self):
-            if not self.engine.game_end():
-                p = self.engine.check_chance()
-                if Inventory.you == 'P1':
-                    colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
-                    colors_name = {'P1': 'You', 'P2': 'They', None: None}
-                else:
-                    colors = {'P2': '#9C6C6C', 'P1': '#6C879C'}
-                    colors_name = {'P1': 'They', 'P2': 'You', None: None}
-                print(f"Player-{p} proceed at {self.cid}")
-                self.configure(state=tk.DISABLED, image=self.images[p])
-                await self.engine.implement(change=f'{self.cid[0]}{self.cid[1]}')
-                self.top.backframe.configure(background=colors[self.engine.check_chance()])
-                self.top.text.configure(background=colors[self.engine.check_chance()], foreground=colors_name[self.engine.check_chance()])
-                self.top.txtvar.set(f"{colors_name[self.engine.check_chance()]}'s Turn!")
-                self.engine.print_grid()
-                winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-            if self.engine.game_end():
-                end = self.engine.game_end()
-                messages = {
-                    'tie': "Game ended with Tie.",
-                    'victory': f"Game ended, {colors_name[self.engine.victory()]} won!",}
-                better.print(messages[end])
-                self.master.master.master.txtvar.set(messages[self.engine.game_end()])
-                winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
-                self.top.backframe.configure(background='silver')
-                self.top.text.configure(background='silver', foreground='white')
-                self.top.disallCbutton()
-
 
     class GameWindow(tk.Frame):
         def __init__(self, master=None, *args, **kwargs):
@@ -276,6 +229,10 @@ def MainCode():
             self.text.grid(row=1, column=0, pady=10)
             self.gameframe = tk.Frame(self.backframe, border=1, borderwidth=5, relief="solid", background="#212124")
             self.gameframe.grid(row=2, column=0, padx=100, pady=50)
+            self.gamemodes = {'offline': self.OfflineClick,
+                               'online': self.OnlineClick
+                               }
+            self.EnabledGB = {}
 
         def run(self):
             Inventory.Engine.run()
@@ -286,12 +243,61 @@ def MainCode():
             self.engine = Inventory.Engine
             for i in range(1, self.n+1):
                 for j in range(1, self.n+1):
-                    GameButton(self.gameframe, cid=[i, j]).grid(row=i, column=j, padx=1, pady=1)
+                    Cid = [i, j]
+                    GB = GameButton(self.gameframe, cid=Cid)
+                    GB.grid(row=i, column=j, padx=1, pady=1)
+                    self.EnabledGB[f'{Cid[0]}{Cid[1]}'] = GB
             self.engine.print_grid()
-            
-        def disallCbutton(self):
+            if self.mode == 'online':
+                if Inventory.you == 'P2':
+                    f= asyncio.run_coroutine_threadsafe(self.WaitClick(), Inventory.background_loop)
+                    f.add_done_callback(handle_result)
+
+        def disable_all_Gbuttons(self):
             for button in self.gameframe.winfo_children():
                 button.configure(state=tk.DISABLED)
+        def enable_enabled_Gbuttons(self):
+            for button in self.EnabledGB.values():
+                button.configure(state=tk.NORMAL)
+
+        async def OfflineClick(self, Gbutton):
+            p = self.engine.check_chance()
+            colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
+            self.colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
+            print(f"Player-{p} proceed at {Gbutton.cid}")
+            Gbutton.configure(state=tk.DISABLED, image=Inventory.GB_Images[p])
+            self.EnabledGB.pop(f'{Gbutton.cid[0]}{Gbutton.cid[1]}')
+            await self.engine.implement(change=f'{Gbutton.cid[0]}{Gbutton.cid[1]}')
+            self.backframe.configure(background=colors[self.engine.check_chance()])
+            self.text.configure(background=colors[self.engine.check_chance()], foreground=self.colors_name[self.engine.check_chance()])
+            self.txtvar.set(f"{self.colors_name[self.engine.check_chance()]}'s Turn!")
+            self.engine.print_grid()
+            winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+            end = self.engine.game_end()
+            if end:
+                messages = {
+                    'tie': "Game ended with Tie.",
+                    'victory': f"Game ended, {self.colors_name[self.engine.victory()]} won!",}
+                better.print(messages[end])
+                self.txtvar.set(messages[end])
+                winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+                self.backframe.configure(background='silver')
+                self.text.configure(background='silver', foreground='white')
+                self.disable_all_Gbuttons() 
+            return Gbutton.cid
+        async def OnlineClick(self, Gbutton):
+            cid = await self.OfflineClick(Gbutton)
+            await Inventory.Client.Game_send(cid)
+            if not self.engine.game_end():
+                await self.WaitClick()
+        async def WaitClick(self):
+            self.disable_all_Gbuttons()
+            print('wait for click, started!')
+            Cid = await Inventory.Client.Game_recv()
+            print(self.EnabledGB)
+            await self.OfflineClick(self.EnabledGB[f'{Cid[0]}{Cid[1]}'])
+            self.enable_enabled_Gbuttons()
+
 
 
     class GridButton(tk.Button):
@@ -372,13 +378,18 @@ def MainCode():
             CMessage = MessageWindow(Inventory.Window, message=f"Room Created! Code: {Inventory.room_code}")
             Inventory.Window.change_frame(CMessage)
             await Inventory.Client.WaitJoin()
+            Inventory.create_Game()
+            Inventory.Game.run()
+            Inventory.Window.change_frame(Inventory.Game)
         async def join_room(self):
             Inventory.address = self.address.get()
             Inventory.room_code = self.room.get()
             Inventory.you = 'P2'
             Inventory.Client.run()
             await Inventory.Client.JoinRoom()
-            self.master.destroy()
+            Inventory.create_Game()
+            Inventory.Game.run()
+            Inventory.Window.change_frame(Inventory.Game)
         async def back(self):
             Inventory.create_mainmenu()
             Inventory.Window.geometry('485x500')
@@ -405,13 +416,8 @@ def MainCode():
     
     Inventory = Core()
     Inventory.create_Instances()
-    mainloop = asyncio.new_event_loop()
-    mainloop.set_debug(True)
-    asyncio.set_event_loop(mainloop)
-    Inventory.background_loop = asyncio.new_event_loop()
-    Inventory.background_loop.set_debug(True)
-    mainloop.run_in_executor(None, Inventory.background_loop.run_forever)
-    mainloop.run_until_complete(Inventory.StartWindow())
+    Inventory.create_loops()
+    Inventory.gui_loop.run_until_complete(Inventory.StartWindow())
     asyncio.run_coroutine_threadsafe(Inventory.Client.disconnect(), Inventory.background_loop)
 
 

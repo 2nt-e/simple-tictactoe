@@ -15,7 +15,13 @@ async def create_game(wb):
     print(games)
 
 async def manage_game(data, wb):
-    pass
+    game_id  = data['room_code']
+    change = data['change']
+    for player in games[game_id]['players']:
+        if player != wb:
+            await player.send(json.dumps({'change': change}))
+
+
 
 async def join_game(data, wb):
         gid = data['room_code']
@@ -43,7 +49,7 @@ async def echoflow(websocket):
             await create_game(websocket)
         elif state == 'join_room':
             await join_game(data, websocket)
-        elif state == 'in_game':
+        elif state == 'game_send':
             await manage_game(data, websocket)
         else:
             ...
