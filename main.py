@@ -1,8 +1,23 @@
 from better_print import *
 import tkinter as tk
-import winsound
+import os
+import sys
+try:
+    import winsound
+    soundplayer = 'winsound'
+except:
+    try:
+        import playsound
+    except:
+        os.system(f'"{sys.executable}" -m pip install playsound')
+        import playsound
+    soundplayer = 'playsound'
 import asyncio
-from websockets.asyncio.client import connect
+try:
+    from websockets.asyncio.client import connect
+except:
+    os.system(f'"{sys.executable}" -m pip  install websockets')
+    from websockets.asyncio.client import connect
 import json
 
 
@@ -46,7 +61,11 @@ def MainCode():
             asyncio.set_event_loop(self.gui_loop)
             self.background_loop = asyncio.new_event_loop()
             self.background_loop.set_debug(True)
-            self.gui_loop.run_in_executor(None, Inventory.background_loop.run_forever)
+            self.gui_loop.run_in_executor(None, self.background_loop.run_forever)
+            if soundplayer != 'winsound':
+                self.sounds_loop = asyncio.new_event_loop()
+                self.sounds_loop.set_debug(True)
+                self.gui_loop.run_in_executor(None, self.sounds_loop.run_forever)
         def create_Instances(self):
             self.Engine = MainEngine()
             self.Client = ClientSide()
@@ -272,7 +291,10 @@ def MainCode():
             self.text.configure(background=colors[self.engine.check_chance()], foreground=self.colors_name[self.engine.check_chance()])
             self.txtvar.set(f"{self.colors_name[self.engine.check_chance()]}'s Turn!")
             self.engine.print_grid()
-            winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+            if soundplayer == 'winsound':
+                winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+            else:
+                asyncio.run_coroutine_threadsafe(Splayer(lambda:playsound.playsound(r'resource\effect.wav')), Inventory.sounds_loop)
             end = self.engine.game_end()
             if end:
                 messages = {
@@ -280,7 +302,10 @@ def MainCode():
                     'victory': f"Game ended, {self.colors_name[self.engine.victory()]} won!",}
                 better.print(messages[end])
                 self.txtvar.set(messages[end])
-                winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+                if soundplayer == 'winsound':
+                    winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+                else:
+                    asyncio.run_coroutine_threadsafe(Splayer(lambda:playsound.playsound(rf'resource\{end}.wav')), Inventory.sounds_loop)
                 self.backframe.configure(background='silver')
                 self.text.configure(background='silver', foreground='white')
                 self.disable_all_Gbuttons() 
@@ -308,7 +333,10 @@ def MainCode():
             self.configure(command=self.Toggle, image=self.image, borderwidth=0, highlightthickness=0, bd=0)
         
         def Toggle(self):
-            winsound.PlaySound(rf'resource\tick.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+            if soundplayer == 'winsound':
+                winsound.PlaySound(rf'resource\tick.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
+            else:
+                asyncio.run_coroutine_threadsafe(Splayer(lambda:playsound.playsound(rf'resource\tick.wav')), Inventory.sounds_loop)
             Inventory.order = int(self.gid[0])
             for button in self.master.winfo_children():
                 if str(button).split('.')[-1][1] == 'g':
@@ -413,7 +441,9 @@ def MainCode():
             print(f"Exception in Thread_A: {e}")
             import traceback
             traceback.print_exc()
-    
+    async def Splayer(sound):
+        sound()
+
     Inventory = Core()
     Inventory.create_Instances()
     Inventory.create_loops()
