@@ -229,18 +229,6 @@ def MainCode():
             return respond['change']
 
                 
-    class GameButton(tk.Button):
-        def __init__(self, master=None, cid=[], **kwargs):
-            self.cid = cid
-            super().__init__(master, **kwargs)
-            self.images = Inventory.GB_Images
-            self.top = self.master.master.master
-            self.configure(command=self.asynclick, image=self.images['0'], borderwidth=0, highlightthickness=0, bd=0)
-        def asynclick(self):
-            future_asynclick = asyncio.run_coroutine_threadsafe(self.top.gamemodes[self.top.engine.mode](self), Inventory.background_loop)
-            future_asynclick.add_done_callback(handle_result)
-            
-
     class GameWindow(tk.Frame):
         def __init__(self, master=None, *args, **kwargs):
 
@@ -248,6 +236,8 @@ def MainCode():
             Inventory.GB_Images = {'0': tk.PhotoImage(file='resource/white.png'),
                         'P1': tk.PhotoImage(file='resource/red.png'),
                         'P2': tk.PhotoImage(file='resource/blue.png')}
+            self.player_colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
+            self.colors_name = {'P1': 'red', 'P2': 'blue'}
             self.backframe = tk.Frame(self, background='silver')
             self.backframe.grid(row=0, column=0)
             self.txtvar = tk.StringVar()
@@ -261,6 +251,14 @@ def MainCode():
                                }
             self.EnabledGB = {}
 
+        def GameButton(self):
+            Button = tk.Button(self.gameframe)
+            Button.configure(command=lambda:self.GBclick(Button), image=Inventory.GB_Images['0'], borderwidth=0, highlightthickness=0, bd=0)
+            return Button
+        def GBclick(self, Button):
+            future_asynclick = asyncio.run_coroutine_threadsafe(self.gamemodes[self.engine.mode](Button), Inventory.background_loop)
+            future_asynclick.add_done_callback(handle_result)
+
         def run(self):
             Inventory.create_GEngine()
             Inventory.Engine.run()
@@ -272,15 +270,20 @@ def MainCode():
             for i in range(1, self.n+1):
                 for j in range(1, self.n+1):
                     Cid = [i, j]
-                    GB = GameButton(self.gameframe, cid=Cid)
+                    GB = self.GameButton()
                     GB.grid(row=i, column=j, padx=1, pady=1)
                     self.EnabledGB[f'{Cid[0]}{Cid[1]}'] = GB
             # self.engine.print_grid()
             if self.mode == 'online':
                 if Inventory.you == 'P2':
+                    self.player_names = {'P1': 'Opponent\'s ', 'P2': 'Your', None: None}
                     f= asyncio.run_coroutine_threadsafe(self.WaitClick(), Inventory.background_loop)
                     f.add_done_callback(handle_result)
-
+                elif Inventory.you == 'P1':
+                    self.player_names = {'P2': 'Opponent\'s ', 'P1': 'Your', None: None}
+                self.change_colors_texts_after('P2')
+            elif self.mode == 'offline':
+                self.player_names = {'P1': 'Red\'s ', 'P2': 'Blue\'s', None: None}
         def disable_all_Gbuttons(self):
             for button in self.gameframe.winfo_children():
                 button.configure(state=tk.DISABLED)
@@ -289,16 +292,13 @@ def MainCode():
                 button.configure(state=tk.NORMAL)
 
         async def OfflineClick(self, Gbutton):
-            p = self.engine.check_chance()
-            colors = {'P1': '#9C6C6C', 'P2': '#6C879C'}
-            self.colors_name = {'P1': 'Red', 'P2': 'Blue', None: None}
+            chance = self.engine.check_chance()
             # print(f"Player-{p} proceed at {Gbutton.cid}")
-            Gbutton.configure(state=tk.DISABLED, image=Inventory.GB_Images[p])
-            self.EnabledGB.pop(f'{Gbutton.cid[0]}{Gbutton.cid[1]}')
-            await self.engine.implement(change=f'{Gbutton.cid[0]}{Gbutton.cid[1]}')
-            self.backframe.configure(background=colors[self.engine.check_chance()])
-            self.text.configure(background=colors[self.engine.check_chance()], foreground=self.colors_name[self.engine.check_chance()])
-            self.txtvar.set(f"{self.colors_name[self.engine.check_chance()]}'s Turn!")
+            cid = self.cid_of_button(Gbutton)
+            Gbutton.configure(state=tk.DISABLED, image=Inventory.GB_Images[chance])
+            self.EnabledGB.pop(f'{cid[0]}{cid[1]}')
+            await self.engine.implement(change=f'{cid[0]}{cid[1]}')
+            self.change_colors_texts_after(chance)
             # self.engine.print_grid()
             if soundplayer == 'winsound':
                 winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
@@ -308,7 +308,7 @@ def MainCode():
             if end:
                 messages = {
                     'tie': "Game ended with Tie.",
-                    'victory': f"Game ended, {self.colors_name[self.engine.victory()]} won!",}
+                    'victory': f"Game ended, {self.player_names[self.engine.victory()]} Victory!",}
                 self.txtvar.set(messages[end])
                 if soundplayer == 'winsound':
                     winsound.PlaySound(rf'resource\{end}.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
@@ -319,7 +319,7 @@ def MainCode():
                 self.disable_all_Gbuttons() 
                 ExitButton = tk.Button(self.backframe, text="<==| Exit to Menu", command=self.restart_and_menu)
                 ExitButton.grid(row=2, column=0, pady=10)
-            return Gbutton.cid
+            return cid
         async def OnlineClick(self, Gbutton):
             cid = await self.OfflineClick(Gbutton)
             await Inventory.WSClient.Game_send(cid)
@@ -331,6 +331,18 @@ def MainCode():
             await self.OfflineClick(self.EnabledGB[f'{Cid[0]}{Cid[1]}'])
             self.enable_enabled_Gbuttons()
         
+        def cid_of_button(self, button):
+            for _ in self.EnabledGB:
+                if self.EnabledGB[_] == button:
+                    return _
+        def change_colors_texts_after(self, chance):
+            if chance == 'P1':
+                now_turn = 'P2'
+            elif chance == 'P2':
+                now_turn = 'P1'
+            self.backframe.configure(background=self.player_colors[now_turn])
+            self.text.configure(background=self.player_colors[now_turn], foreground=self.colors_name[now_turn])
+            self.txtvar.set(f"{self.player_names[now_turn]} Turn!")
         def restart_and_menu(self):
                 Inventory.create_memory()
                 Inventory.create_mainmenu()
