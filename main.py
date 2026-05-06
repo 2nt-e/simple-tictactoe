@@ -1,4 +1,4 @@
-from better_print import *
+from better_utilities import *
 import tkinter as tk
 import os
 import sys
@@ -47,15 +47,15 @@ def MainCode():
 
         def create_loops(self):
             self.gui_loop = asyncio.new_event_loop()
-            self.gui_loop.set_debug(True)
+            # self.gui_loop.set_debug(True)
             asyncio.set_event_loop(self.gui_loop)
             self.background_loop = asyncio.new_event_loop()
-            self.background_loop.set_debug(True)
+            # self.background_loop.set_debug(True)
             self.gui_loop.run_in_executor(None, self.background_loop.run_forever)
             self.gui_loop.run_in_executor(None, self.background_music)
             if soundplayer != 'winsound':
                 self.sounds_loop = asyncio.new_event_loop()
-                self.sounds_loop.set_debug(True)
+                # self.sounds_loop.set_debug(True)
                 self.gui_loop.run_in_executor(None, self.sounds_loop.run_forever)
         def create_GEngine(self):
             self.Engine = ArialEngine()
@@ -199,7 +199,7 @@ def MainCode():
             self.Data['State'] = 'create_room'
             await self.websocket.send(json.dumps(self.Data))
             respond = json.loads(await self.websocket.recv())
-            print(respond)
+            MultiPlayer_logs.add_logging(message=respond)
             self.Data['State'] = respond['State']
             self.Data['room_code'] = Inventory.room_code = respond['game_id']
         
@@ -207,7 +207,7 @@ def MainCode():
             while self.Data['State'] != 'room_created':
                 await asyncio.sleep(0.1)
             respond = json.loads(await self.websocket.recv())
-            print(respond)
+            MultiPlayer_logs.add_logging(message=respond)
         
         async def JoinRoom(self):
             while not self.websocket:
@@ -215,7 +215,7 @@ def MainCode():
             self.Data['State'] = 'join_room'
             await self.websocket.send(json.dumps(self.Data))
             respond = json.loads(await self.websocket.recv())
-            print(respond)
+            MultiPlayer_logs.add_logging(message=respond)
             if respond['State'] == 'room_created':
                 self.Data['State'] = respond['State']
 
@@ -225,10 +225,10 @@ def MainCode():
             await self.websocket.send(json.dumps(self.Data))
         async def Game_recv(self):
             respond = json.loads(await self.websocket.recv())
-            # print(respond)
+            MultiPlayer_logs.add_logging(message=respond)
             return respond['change']
 
-                
+
     class GameWindow(tk.Frame):
         def __init__(self, master=None, *args, **kwargs):
 
@@ -273,7 +273,7 @@ def MainCode():
                     GB = self.GameButton()
                     GB.grid(row=i, column=j, padx=1, pady=1)
                     self.EnabledGB[f'{Cid[0]}{Cid[1]}'] = GB
-            # self.engine.print_grid()
+            PlayerM_logs.add_logging(function=self.engine.print_grid)
             if self.mode == 'online':
                 if Inventory.you == 'P2':
                     self.player_names = {'P1': 'Opponent\'s ', 'P2': 'Your', None: None}
@@ -293,13 +293,13 @@ def MainCode():
 
         async def OfflineClick(self, Gbutton):
             chance = self.engine.check_chance()
-            # print(f"Player-{p} proceed at {Gbutton.cid}")
             cid = self.cid_of_button(Gbutton)
+            PlayerM_logs.add_logging(message=f"Player-{chance} proceed at {cid}")
             Gbutton.configure(state=tk.DISABLED, image=Inventory.GB_Images[chance])
             self.EnabledGB.pop(f'{cid[0]}{cid[1]}')
             await self.engine.implement(change=f'{cid[0]}{cid[1]}')
             self.change_colors_texts_after(chance)
-            # self.engine.print_grid()
+            PlayerM_logs.add_logging(function=self.engine.print_grid)
             if soundplayer == 'winsound':
                 winsound.PlaySound(r'resource\effect.wav', winsound.SND_FILENAME | winsound.SND_ASYNC)
             else:
@@ -428,9 +428,7 @@ def MainCode():
             await Inventory.WSClient.CreateRoom()
             CMessage = MessageWindow(Inventory.Window, message=f"Room Created! Code: {Inventory.room_code}")
             Inventory.Window.change_frame(CMessage)
-            print('waiting started')
             await Inventory.WSClient.WaitJoin()
-            print('waiting ended')
             Inventory.create_Game()
             Inventory.Game.run()
             Inventory.Window.change_frame(Inventory.Game)
@@ -464,7 +462,7 @@ def MainCode():
         try:
             future.result()
         except Exception as e:
-            print(f"Exception in Thread_A: {e}")
+            print(f"Exception: {e}")
             import traceback
             traceback.print_exc()
 
@@ -472,8 +470,13 @@ def MainCode():
         sound()
 
 
+
+    PlayerM_logs = Logger('Player-Move Logs')
+    PlayerM_logs.set_logging(False)
+    MultiPlayer_logs = Logger('Multiplayer Logs')
+    MultiPlayer_logs.set_logging(False)
+
     Inventory = Core()
-    # Inventory.create_Instances()
     Inventory.create_loops()
     Inventory.gui_loop.run_until_complete(Inventory.StartWindow())
     if Inventory.WSClient:
