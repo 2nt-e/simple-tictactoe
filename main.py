@@ -3,10 +3,10 @@ import tkinter as tk
 import os
 import sys
 try:
-    import playsound
+    import playsound3 as playsound
 except:
     os.system(f'"{sys.executable}" -m pip install playsound')
-    import playsound
+    import playsound3 as playsound
 try:
     import winsound
     soundplayer = 'winsound'
@@ -41,7 +41,7 @@ def MainCode():
             self.you = None
         
         def background_music(self):
-            import playsound
+            import playsound3 as playsound
             while True:
                 playsound.playsound(r'resource\bg_music.wav')
 
